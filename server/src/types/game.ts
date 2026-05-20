@@ -1,4 +1,3 @@
-import type { Chess } from "chess.js";
 import type { WebSocket } from "ws";
 
 export type GameMode = "single" | "multiplayer";
@@ -15,11 +14,10 @@ export type SocketClient = {
   ws: WebSocket;
 };
 
-export type GameRoom = {
+export type GameRoomState = {
   id: string;
   mode: GameMode;
-  chess: Chess;
-  clients: Map<string, SocketClient>;
+  fen: string;
 };
 
 export type JoinMessage = {

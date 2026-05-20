@@ -1,18 +1,38 @@
+import { Chess } from "chess.js";
 import type { ManagedWebSocket } from "../../types/ws.js";
-import type { GameRoom, InboundMessage, MoveMessage } from "../../types/game.js";
+import type { GameMode, InboundMessage, MoveMessage, PieceColor, SocketClient } from "../../types/game.js";
 import { sendJson } from "../../utils/socket.js";
 import { buildSnapshot } from "../../utils/gameSnapshot.js";
-import { assignColor, deleteRoom, getOrCreateRoom, getRoom } from "../../services/room.service.js";
+import { assignColor, deleteRoom, getOrCreateRoom, getRoom, saveRoom } from "../../services/room.service.js";
 import { selectBestMove } from "../../services/chessEngine.service.js";
 
 type HandlerDeps = {
-  normalizeMode: (value: string) => "single" | "multiplayer";
+  normalizeMode: (value: string) => GameMode;
 };
 
-function broadcastRoom(room: GameRoom): void {
+const roomClients = new Map<string, Map<string, SocketClient>>();
+
+function getClients(roomId: string): Map<string, SocketClient> {
+  const existing = roomClients.get(roomId);
+  if (existing) {
+    return existing;
+  }
+
+  const created = new Map<string, SocketClient>();
+  roomClients.set(roomId, created);
+  return created;
+}
+
+async function broadcastRoom(roomId: string): Promise<void> {
+  const room = await getRoom(roomId);
+  if (!room) {
+    return;
+  }
+
+  const clients = getClients(roomId);
   const snapshot = buildSnapshot(room);
 
-  for (const client of room.clients.values()) {
+  for (const client of clients.values()) {
     sendJson(client.ws as ManagedWebSocket, {
       type: "joined",
       roomId: room.id,
@@ -24,7 +44,7 @@ function broadcastRoom(room: GameRoom): void {
   }
 }
 
-function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: HandlerDeps): void {
+async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: HandlerDeps): Promise<void> {
   if (message.type !== "join") {
     sendJson(ws, { type: "error", message: "Invalid join payload." });
     return;
@@ -38,61 +58,67 @@ function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: Handler
   }
 
   const normalizedMode = deps.normalizeMode(mode);
-  const room = getOrCreateRoom(roomId, normalizedMode);
+  const room = await getOrCreateRoom(roomId, normalizedMode);
 
   if (room.mode !== normalizedMode) {
     sendJson(ws, { type: "error", message: "Room mode mismatch." });
     return;
   }
 
-  const color = assignColor(room);
+  const clients = getClients(roomId);
+  const usedColors: PieceColor[] = Array.from(clients.values()).map((client) => client.color);
+  const color = assignColor(room.mode, usedColors);
   if (!color) {
     sendJson(ws, { type: "error", message: "Room is full." });
     return;
   }
 
-  room.clients.set(uid, { uid, color, ws });
+  clients.set(uid, { uid, color, ws });
   ws.meta = { roomId, uid };
-  broadcastRoom(room);
+  await broadcastRoom(roomId);
 }
 
-function handleMove(ws: ManagedWebSocket, message: MoveMessage): void {
+async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<void> {
   const { roomId, uid, from, to, promotion } = message;
-  const room = getRoom(roomId);
+  const room = await getRoom(roomId);
 
   if (!room) {
     sendJson(ws, { type: "error", message: "Room not found." });
     return;
   }
 
-  const player = room.clients.get(uid);
+  const clients = getClients(roomId);
+  const player = clients.get(uid);
   if (!player) {
     sendJson(ws, { type: "error", message: "Not in room." });
     return;
   }
 
-  if (room.chess.turn() !== player.color) {
+  const chess = new Chess(room.fen);
+
+  if (chess.turn() !== player.color) {
     sendJson(ws, { type: "error", message: "Not your turn." });
     return;
   }
 
-  const applied = room.chess.move({ from, to, promotion: promotion || "q" });
+  const applied = chess.move({ from, to, promotion: promotion || "q" });
   if (!applied) {
     sendJson(ws, { type: "error", message: "Illegal move." });
     return;
   }
 
-  if (room.mode === "single" && !room.chess.isGameOver()) {
-    const aiMove = selectBestMove(room.chess, 3);
+  if (room.mode === "single" && !chess.isGameOver()) {
+    const aiMove = selectBestMove(chess, 3);
     if (aiMove) {
-      room.chess.move(aiMove);
+      chess.move(aiMove);
     }
   }
 
-  broadcastRoom(room);
+  await saveRoom({ ...room, fen: chess.fen() });
+  await broadcastRoom(roomId);
 }
 
-export function onSocketMessage(ws: ManagedWebSocket, raw: unknown, deps: HandlerDeps): void {
+export async function onSocketMessage(ws: ManagedWebSocket, raw: unknown, deps: HandlerDeps): Promise<void> {
   let parsed: InboundMessage;
 
   try {
@@ -103,34 +129,31 @@ export function onSocketMessage(ws: ManagedWebSocket, raw: unknown, deps: Handle
   }
 
   if (parsed.type === "join") {
-    handleJoin(ws, parsed, deps);
+    await handleJoin(ws, parsed, deps);
     return;
   }
 
   if (parsed.type === "move") {
-    handleMove(ws, parsed);
+    await handleMove(ws, parsed);
     return;
   }
 
   sendJson(ws, { type: "error", message: "Unknown message type." });
 }
 
-export function onSocketClose(ws: ManagedWebSocket): void {
+export async function onSocketClose(ws: ManagedWebSocket): Promise<void> {
   if (!ws.meta) {
     return;
   }
 
-  const room = getRoom(ws.meta.roomId);
-  if (!room) {
+  const clients = getClients(ws.meta.roomId);
+  clients.delete(ws.meta.uid);
+
+  if (clients.size === 0) {
+    roomClients.delete(ws.meta.roomId);
+    await deleteRoom(ws.meta.roomId);
     return;
   }
 
-  room.clients.delete(ws.meta.uid);
-
-  if (room.clients.size === 0) {
-    deleteRoom(ws.meta.roomId);
-    return;
-  }
-
-  broadcastRoom(room);
+  await broadcastRoom(ws.meta.roomId);
 }

@@ -158,7 +158,7 @@
   }
 
   .lk-sound-toggle {
-    @apply mb-3 inline-flex rounded-full bg-blue-100 px-4 py-1.5 text-sm font-bold text-blue-700;
+    @apply mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700;
   }
 
   .lk-board-wrap {

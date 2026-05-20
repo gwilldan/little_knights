@@ -1,45 +1,73 @@
 import { Chess } from "chess.js";
-import type { GameMode, GameRoom, PieceColor } from "../types/game.js";
+import type { GameMode, GameRoomState, PieceColor } from "../types/game.js";
+import { redis } from "./redis.service.js";
 
-const rooms = new Map<string, GameRoom>();
+const ROOM_KEY_PREFIX = "lk:room:";
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-export function getRoom(roomId: string): GameRoom | undefined {
-  return rooms.get(roomId);
+function roomKey(roomId: string): string {
+  return `${ROOM_KEY_PREFIX}${roomId}`;
 }
 
-export function getOrCreateRoom(roomId: string, mode: GameMode): GameRoom {
-  const existing = rooms.get(roomId);
+export function buildChess(fen: string): Chess {
+  return new Chess(fen);
+}
+
+function normalizeFen(fen: string): string {
+  try {
+    return new Chess(fen).fen();
+  } catch {
+    return START_FEN;
+  }
+}
+
+export async function getRoom(roomId: string): Promise<GameRoomState | null> {
+  const value = await redis.get(roomKey(roomId));
+  if (!value) {
+    return null;
+  }
+
+  const room = JSON.parse(value) as GameRoomState;
+  const normalizedFen = normalizeFen(room.fen);
+
+  if (room.fen !== normalizedFen) {
+    const normalizedRoom: GameRoomState = { ...room, fen: normalizedFen };
+    await redis.set(roomKey(roomId), JSON.stringify(normalizedRoom));
+    return normalizedRoom;
+  }
+
+  return room;
+}
+
+export async function getOrCreateRoom(roomId: string, mode: GameMode): Promise<GameRoomState> {
+  const existing = await getRoom(roomId);
   if (existing) {
     return existing;
   }
 
-  const created: GameRoom = {
-    id: roomId,
-    mode,
-    chess: new Chess(),
-    clients: new Map()
-  };
-
-  rooms.set(roomId, created);
+  const created: GameRoomState = { id: roomId, mode, fen: START_FEN };
+  await redis.set(roomKey(roomId), JSON.stringify(created));
   return created;
 }
 
-export function deleteRoom(roomId: string): boolean {
-  return rooms.delete(roomId);
+export async function saveRoom(room: GameRoomState): Promise<void> {
+  await redis.set(roomKey(room.id), JSON.stringify(room));
 }
 
-export function assignColor(room: GameRoom): PieceColor | null {
-  if (room.mode === "single") {
+export async function deleteRoom(roomId: string): Promise<void> {
+  await redis.del(roomKey(roomId));
+}
+
+export function assignColor(mode: GameMode, usedColors: PieceColor[]): PieceColor | null {
+  if (mode === "single") {
     return "w";
   }
 
-  const used = new Set(Array.from(room.clients.values()).map((client) => client.color));
-
-  if (!used.has("w")) {
+  if (!usedColors.includes("w")) {
     return "w";
   }
 
-  if (!used.has("b")) {
+  if (!usedColors.includes("b")) {
     return "b";
   }
 

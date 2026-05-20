@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
 import CapturedTray from "~/components/chess/CapturedTray";
 import ChessHeader from "~/components/chess/ChessHeader";
@@ -26,6 +27,7 @@ function sendJson(socket: WebSocket | null, payload: ClientMessage) {
 export default function NetworkChessGame({ mode, roomId, title, opponentLabel }: NetworkChessGameProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshotMessage | null>(null);
+  const [displayFen, setDisplayFen] = useState<string>("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
   const [myColor, setMyColor] = useState<"w" | "b">("w");
   const [moveFrom, setMoveFrom] = useState("");
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
@@ -41,7 +43,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
 
   const uid = useMemo(() => getOrCreateUid(), []);
 
-  function playMoveSound() {
+  function playTone(frequency: number, durationMs: number) {
     if (!soundEnabled || typeof window === "undefined") {
       return false;
     }
@@ -54,15 +56,24 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     const osc = context.createOscillator();
     const gain = context.createGain();
     osc.type = "triangle";
-    osc.frequency.value = 580;
+    osc.frequency.value = frequency;
     gain.gain.value = 0.0001;
     gain.gain.exponentialRampToValueAtTime(0.15, context.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.09);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + durationMs / 1000);
     osc.connect(gain);
     gain.connect(context.destination);
     osc.start();
-    osc.stop(context.currentTime + 0.1);
+    osc.stop(context.currentTime + durationMs / 1000 + 0.01);
     return true;
+  }
+
+  function playMoveSound() {
+    return playTone(580, 90);
+  }
+
+  function playIllegalMoveSound() {
+    playTone(260, 70);
+    return playTone(200, 90);
   }
 
   function clearSelection() {
@@ -129,11 +140,23 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
         const hasMoves = setMoveOptions(square);
         setMoveFrom(hasMoves ? square : "");
       } else {
+        playIllegalMoveSound();
         clearSelection();
       }
       return;
     }
 
+    const optimisticGame = new Chess(displayFen);
+    const optimisticMove = optimisticGame.move({ from: moveFrom, to: square, promotion: "q" });
+
+    if (!optimisticMove) {
+      playIllegalMoveSound();
+      clearSelection();
+      return;
+    }
+
+    setDisplayFen(optimisticGame.fen());
+    playMoveSound();
     sendMove(moveFrom, square);
     clearSelection();
   }
@@ -189,15 +212,19 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
 
       if (message.type === "snapshot") {
         const next = message as GameSnapshotMessage;
-        if (lastFenRef.current && lastFenRef.current !== next.fen) {
+        if (lastFenRef.current && lastFenRef.current !== next.fen && next.turn !== myColor) {
           playMoveSound();
         }
         lastFenRef.current = next.fen;
         setSnapshot(next);
+        setDisplayFen(next.fen);
         return;
       }
 
       if (message.type === "error") {
+        if (message.message.toLowerCase().includes("illegal")) {
+          playIllegalMoveSound();
+        }
         setStatus(message.message);
       }
     });
@@ -206,7 +233,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
       socket.close();
       socketRef.current = null;
     };
-  }, [isMounted, mode, roomId, uid, wsUrl]);
+  }, [isMounted, mode, roomId, uid, wsUrl, myColor]);
 
   const turnLabel = !snapshot
     ? "Loading"
@@ -220,7 +247,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     id: `${mode}-${roomId}`,
     allowDragging: false,
     onSquareClick,
-    position: snapshot?.fen ?? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+    position: displayFen,
     boardOrientation: myColor === "w" ? "white" : "black",
     squareStyles: optionSquares,
     darkSquareStyle: { backgroundColor: "#bd8457" },
@@ -236,7 +263,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
         capturedByBlack={snapshot?.capturedByBlack ?? []}
       />
       <button className="lk-sound-toggle" onClick={toggleSound} type="button">
-        Sound: {soundEnabled ? "On" : "Off"}
+        {soundEnabled ? "🔊" : "🔇"}
       </button>
 
       <div className="lk-board-wrap">{isMounted ? <Chessboard options={options} /> : <div className="lk-board-placeholder" />}</div>

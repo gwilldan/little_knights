@@ -10,12 +10,12 @@ export function registerGameSocketRoutes(wss: WebSocketServer): void {
   wss.on("connection", (socket) => {
     const ws = socket as ManagedWebSocket;
 
-    ws.on("message", (raw) => {
-      onSocketMessage(ws, raw, { normalizeMode });
+    ws.on("message", async (raw) => {
+      await onSocketMessage(ws, raw, { normalizeMode });
     });
 
-    ws.on("close", () => {
-      onSocketClose(ws);
+    ws.on("close", async () => {
+      await onSocketClose(ws);
     });
   });
 }

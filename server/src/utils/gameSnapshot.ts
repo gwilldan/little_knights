@@ -1,5 +1,5 @@
-import type { Chess } from "chess.js";
-import type { GameRoom, SnapshotMessage } from "../types/game.js";
+import { Chess } from "chess.js";
+import type { GameRoomState, SnapshotMessage } from "../types/game.js";
 
 function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack: string[] } {
   const capturedByWhite: string[] = [];
@@ -20,10 +20,11 @@ function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack
   return { capturedByWhite, capturedByBlack };
 }
 
-export function buildSnapshot(room: GameRoom): SnapshotMessage {
-  const { capturedByWhite, capturedByBlack } = getCaptured(room.chess);
+export function buildSnapshot(room: GameRoomState): SnapshotMessage {
+  const chess = new Chess(room.fen);
+  const { capturedByWhite, capturedByBlack } = getCaptured(chess);
 
-  const legalMoves = room.chess.moves({ verbose: true }).map((move) => ({
+  const legalMoves = chess.moves({ verbose: true }).map((move) => ({
     from: move.from,
     to: move.to,
     promotion: move.promotion
@@ -33,9 +34,9 @@ export function buildSnapshot(room: GameRoom): SnapshotMessage {
     type: "snapshot",
     roomId: room.id,
     mode: room.mode,
-    fen: room.chess.fen(),
-    turn: room.chess.turn(),
-    isGameOver: room.chess.isGameOver(),
+    fen: chess.fen(),
+    turn: chess.turn(),
+    isGameOver: chess.isGameOver(),
     legalMoves,
     capturedByWhite,
     capturedByBlack

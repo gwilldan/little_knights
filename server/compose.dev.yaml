@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      REDIS_URL: redis://redis:6379
+      PORT: 8080
+    command: npm run dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./tsconfig.json
+          target: /app/tsconfig.json
+        - action: rebuild
+          path: ./package.json
