@@ -1,4 +1,8 @@
-export default function PlayerRow() {
+type PlayerRowProps = {
+  opponentLabel: string;
+};
+
+export default function PlayerRow({ opponentLabel }: PlayerRowProps) {
   return (
     <section aria-label="Players" className="lk-players">
       <div className="lk-player">
@@ -9,7 +13,7 @@ export default function PlayerRow() {
       <span className="lk-versus">vs</span>
 
       <div className="lk-player lk-player-right">
-        <strong>AI</strong> <img alt="AI avatar" className="lk-avatar-img" src="/avatars/ai.svg" />
+        <strong>{opponentLabel}</strong> <img alt={`${opponentLabel} avatar`} className="lk-avatar-img" src="/avatars/ai.svg" />
       </div>
     </section>
   );

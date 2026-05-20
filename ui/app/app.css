@@ -137,7 +137,8 @@
   }
 
   .lk-chip {
-    @apply relative grid h-[24px] min-w-[18px] place-items-center text-base font-extrabold;
+    @apply relative grid h-[48px] min-w-[36px] place-items-center text-3xl font-black;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
   }
 
   .lk-chip-dark {
@@ -149,7 +150,7 @@
   }
 
   .lk-chip-stack {
-    @apply -mr-1;
+    @apply -mr-2;
   }
 
   .lk-chip-count {

@@ -9,13 +9,10 @@ const PIECE_VALUES: Record<PieceSymbol, number> = {
   k: 20000
 };
 
-type MoveLike = string | { from: string; to: string; promotion?: string };
-
-function evaluateBoard(game: Chess) {
-  const board = game.board();
+function evaluateBoard(game: Chess): number {
   let score = 0;
 
-  for (const row of board) {
+  for (const row of game.board()) {
     for (const square of row) {
       if (!square) {
         continue;
@@ -26,10 +23,8 @@ function evaluateBoard(game: Chess) {
     }
   }
 
-  // Add a small mobility term so AI prefers active positions.
-  const turn = game.turn();
   const mobility = game.moves().length;
-  score += turn === "b" ? mobility * 2 : -mobility * 2;
+  score += game.turn() === "b" ? mobility * 2 : -mobility * 2;
 
   return score;
 }
@@ -71,17 +66,18 @@ function search(game: Chess, depth: number, alpha: number, beta: number, maximiz
       break;
     }
   }
+
   return best;
 }
 
-export function selectBestMove(game: Chess, depth = 3): MoveLike | null {
+export function selectBestMove(game: Chess, depth = 3): string | null {
   const legalMoves = game.moves();
   if (legalMoves.length === 0) {
     return null;
   }
 
   let bestScore = -Infinity;
-  let bestMove: MoveLike | null = null;
+  let bestMove: string | null = null;
 
   for (const move of legalMoves) {
     game.move(move);
