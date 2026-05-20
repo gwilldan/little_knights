@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cinzel", "Cormorant Garamond", Georgia, serif;
+}
+
+@layer base {
+  html,
+  body {
+    @apply m-0 min-h-full;
+  }
+
+  body {
+    font-family: "Cinzel", "Cormorant Garamond", Georgia, serif;
+  }
+}
+
+@layer components {
+  .lk-menu-screen {
+    @apply grid min-h-dvh items-center gap-3 p-6;
+    grid-template-columns: minmax(280px, 520px) minmax(150px, 1fr);
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)),
+      repeating-linear-gradient(90deg, #7b4317 0, #8a4d1c 28px, #a16025 30px, #7e471b 56px);
+  }
+
+  .lk-menu-panel {
+    width: min(92vw, 430px);
+    @apply mx-auto;
+  }
+
+  .lk-menu-title {
+    @apply mb-5 mt-0 uppercase font-extrabold tracking-[0.04em];
+    font-size: clamp(3rem, 10vw, 6rem);
+    color: #ebcc8b;
+    text-shadow: 0 2px 0 #8f5f2a, 0 8px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .lk-menu-buttons {
+    @apply grid gap-4;
+  }
+
+  .lk-menu-button {
+    @apply inline-flex min-h-[72px] w-full items-center justify-center rounded-full border font-extrabold uppercase tracking-[0.04em] no-underline shadow;
+    font-size: clamp(1.2rem, 4vw, 2.2rem);
+    border-color: #d4b27a;
+    background: linear-gradient(180deg, #f0e1b8, #dcc090);
+    color: #5e2f15;
+  }
+
+  .lk-menu-button:disabled {
+    @apply opacity-65;
+  }
+
+  .lk-menu-piece {
+    @apply select-none justify-self-end;
+    font-size: min(42vw, 520px);
+    color: #bcc2cc;
+    line-height: 0.8;
+    text-shadow: -6px 6px 18px rgba(0, 0, 0, 0.45);
+  }
+
+  .lk-options-list {
+    @apply mb-4 grid gap-3 rounded-[20px] border p-4;
+    background: rgba(255, 247, 230, 0.88);
+    border-color: rgba(124, 74, 27, 0.5);
+  }
+
+  .lk-option-row {
+    @apply flex items-center justify-between gap-2.5 text-base font-bold;
+    color: #5e2f15;
+  }
+
+  .lk-option-row-stack {
+    @apply flex-col items-start;
+  }
+
+  .lk-option-input {
+    @apply h-10 w-full rounded-[10px] border px-2.5;
+    border-color: #b6834d;
+    font-family: "Sora", "Avenir Next", sans-serif;
+  }
+
+  .lk-shell {
+    width: min(92vw, 460px);
+    @apply mx-auto px-0 pb-7 pt-5;
+  }
+
+  .lk-header {
+    @apply mb-2.5 text-center;
+  }
+
+  .lk-title {
+    @apply m-0 tracking-[0.01em];
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    line-height: 0.95;
+    color: #1f2b52;
+  }
+
+  .lk-subtitle {
+    @apply mb-0 mt-2 text-[1.45rem] font-extrabold;
+    color: #2d6cdf;
+  }
+
+  .lk-room-state {
+    @apply mb-0 mt-2 font-bold;
+    color: #59688b;
+  }
+
+  .lk-players {
+    @apply my-4 flex items-center justify-between;
+  }
+
+  .lk-player {
+    @apply flex items-center gap-3 text-lg font-bold;
+  }
+
+  .lk-player-right {
+    @apply justify-end;
+  }
+
+  .lk-avatar-img {
+    @apply h-16 w-16 rounded-full shadow;
+  }
+
+  .lk-versus {
+    @apply font-bold;
+    color: #65708e;
+  }
+
+  .lk-captured {
+    @apply mb-3 mt-1 flex items-center justify-between gap-2;
+  }
+
+  .lk-captured-pieces {
+    @apply flex min-h-[30px] items-center;
+  }
+
+  .lk-chip {
+    @apply relative grid h-[24px] min-w-[18px] place-items-center text-base font-extrabold;
+  }
+
+  .lk-chip-dark {
+    @apply text-[#2f3f62];
+  }
+
+  .lk-chip-light {
+    @apply text-[#9ea8bd];
+  }
+
+  .lk-chip-stack {
+    @apply -mr-1;
+  }
+
+  .lk-chip-count {
+    @apply absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-blue-600 text-[10px] text-white;
+  }
+
+  .lk-sound-toggle {
+    @apply mb-3 inline-flex rounded-full bg-blue-100 px-4 py-1.5 text-sm font-bold text-blue-700;
+  }
+
+  .lk-board-wrap {
+    @apply m-4 rounded-2xl bg-[#f8f8f8] shadow;
+    box-shadow: 0 10px 24px rgba(18, 31, 65, 0.12);
+  }
+
+  .lk-board-wrap > div {
+    @apply overflow-hidden rounded-[10px];
+  }
+
+  .lk-board-placeholder {
+    @apply w-full rounded-[10px];
+    aspect-ratio: 1 / 1;
+    background: linear-gradient(135deg, #f0dcc0, #b88257);
+  }
+
+  .lk-undo-wrap {
+    @apply relative mx-auto mt-5 w-[74px];
+  }
+
+  .lk-undo {
+    @apply h-[74px] w-[74px] cursor-pointer rounded-full border-0 bg-[#dfe6f1] text-[2rem] font-bold text-[#1d6de2];
+  }
+
+  .lk-undo:disabled {
+    @apply cursor-not-allowed opacity-45;
+  }
+
+  .lk-undo-count {
+    @apply absolute -right-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-[#1678f2] text-[0.95rem] font-extrabold text-white;
+  }
+
+  .lk-multi-actions {
+    @apply mt-4;
+  }
+}
+
+@media (max-width: 780px) {
+  .lk-menu-screen {
+    grid-template-columns: 1fr;
+  }
+
+  .lk-menu-piece {
+    @apply justify-self-center;
+    font-size: min(52vw, 280px);
+  }
+}
+
+@media (max-width: 520px) {
+  .lk-shell {
+    width: calc(100vw - 24px);
+  }
+
+  .lk-player {
+    @apply text-base;
+  }
+}
