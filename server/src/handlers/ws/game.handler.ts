@@ -3,7 +3,7 @@ import type { GameRoom, InboundMessage, MoveMessage } from "../../types/game.js"
 import { sendJson } from "../../utils/socket.js";
 import { buildSnapshot } from "../../utils/gameSnapshot.js";
 import { assignColor, deleteRoom, getOrCreateRoom, getRoom } from "../../services/room.service.js";
-import { selectBestMove } from "../../services/chessAi.service.js";
+import { selectBestMove } from "../../services/chessEngine.service.js";
 
 type HandlerDeps = {
   normalizeMode: (value: string) => "single" | "multiplayer";
