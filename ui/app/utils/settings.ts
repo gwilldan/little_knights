@@ -7,7 +7,7 @@ export type AppSettings = {
 };
 
 const SETTINGS_KEY = "little-knights-settings";
-const WS_URL = process.env.NODE_ENV === "production" ? "ws://api.chess.gwilldan.xyz" : "ws://localhost:8080";
+const WS_URL = process.env.NODE_ENV === "production" ? "wss://api.chess.gwilldan.xyz" : "ws://localhost:8080";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
