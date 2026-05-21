@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import type { GameRoomState, SnapshotMessage } from "../types/game.js";
+import { applyClockTick } from "../services/room.service.js";
 
 function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack: string[] } {
   const capturedByWhite: string[] = [];
@@ -21,24 +22,32 @@ function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack
 }
 
 export function buildSnapshot(room: GameRoomState): SnapshotMessage {
-  const chess = new Chess(room.fen);
+  const effectiveRoom = applyClockTick(room);
+  const chess = new Chess(effectiveRoom.fen);
   const { capturedByWhite, capturedByBlack } = getCaptured(chess);
 
-  const legalMoves = chess.moves({ verbose: true }).map((move) => ({
-    from: move.from,
-    to: move.to,
-    promotion: move.promotion
-  }));
+  const legalMoves = effectiveRoom.winner
+    ? []
+    : chess.moves({ verbose: true }).map((move) => ({
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion
+      }));
 
   return {
     type: "snapshot",
-    roomId: room.id,
-    mode: room.mode,
+    roomId: effectiveRoom.id,
+    mode: effectiveRoom.mode,
     fen: chess.fen(),
     turn: chess.turn(),
-    isGameOver: chess.isGameOver(),
+    isGameOver: chess.isGameOver() || Boolean(effectiveRoom.winner),
     legalMoves,
     capturedByWhite,
-    capturedByBlack
+    capturedByBlack,
+    whiteMs: Math.max(0, effectiveRoom.whiteMs),
+    blackMs: Math.max(0, effectiveRoom.blackMs),
+    winner: effectiveRoom.winner,
+    endReason: effectiveRoom.endReason,
+    serverNow: Date.now()
   };
 }

@@ -2,6 +2,7 @@ import type { WebSocket } from "ws";
 
 export type GameMode = "single" | "multiplayer";
 export type PieceColor = "w" | "b";
+export type GameEndReason = "checkmate" | "draw" | "timeout";
 
 export type WsMeta = {
   roomId: string;
@@ -18,6 +19,12 @@ export type GameRoomState = {
   id: string;
   mode: GameMode;
   fen: string;
+  players: Record<string, PieceColor>;
+  whiteMs: number;
+  blackMs: number;
+  activeTurnStartedAt: number | null;
+  winner: PieceColor | null;
+  endReason: GameEndReason | null;
 };
 
 export type JoinMessage = {
@@ -36,7 +43,13 @@ export type MoveMessage = {
   promotion?: string;
 };
 
-export type InboundMessage = JoinMessage | MoveMessage;
+export type NewGameMessage = {
+  type: "new_game";
+  roomId: string;
+  uid: string;
+};
+
+export type InboundMessage = JoinMessage | MoveMessage | NewGameMessage;
 
 export type SnapshotMessage = {
   type: "snapshot";
@@ -48,6 +61,11 @@ export type SnapshotMessage = {
   legalMoves: Array<{ from: string; to: string; promotion?: string }>;
   capturedByWhite: string[];
   capturedByBlack: string[];
+  whiteMs: number;
+  blackMs: number;
+  winner: PieceColor | null;
+  endReason: GameEndReason | null;
+  serverNow: number;
 };
 
 export type JoinedMessage = {

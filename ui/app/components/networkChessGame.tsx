@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
 import CapturedTray from "~/components/chess/CapturedTray";
-import ChessHeader from "~/components/chess/ChessHeader";
-import PlayerRow from "~/components/chess/PlayerRow";
 import { loadSettings, saveSettings } from "~/utils/settings";
 import { getOrCreateUid } from "~/utils/user";
-import type { ClientMessage, GameMode, GameSnapshotMessage, JoinedMessage, MoveMessage, ServerMessage } from "~/types/game";
+import type { ClientMessage, GameMode, GameSnapshotMessage, JoinedMessage, MoveMessage, PieceColor, ServerMessage } from "~/types/game";
 
 type NetworkChessGameProps = {
   mode: GameMode;
@@ -24,23 +23,31 @@ function sendJson(socket: WebSocket | null, payload: ClientMessage) {
   return true;
 }
 
+function formatMs(ms: number) {
+  const safe = Math.max(0, ms);
+  const totalSeconds = Math.ceil(safe / 1000);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
 export default function NetworkChessGame({ mode, roomId, title, opponentLabel }: NetworkChessGameProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshotMessage | null>(null);
   const [displayFen, setDisplayFen] = useState<string>("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-  const [myColor, setMyColor] = useState<"w" | "b">("w");
+  const [myColor, setMyColor] = useState<PieceColor>("w");
   const [moveFrom, setMoveFrom] = useState("");
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
   const [status, setStatus] = useState("Connecting...");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [clockNow, setClockNow] = useState(Date.now());
+  const [flipped, setFlipped] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const lastFenRef = useRef<string | null>(null);
 
-  const settings = loadSettings();
-  const wsUrl = settings.wsUrl;
-
+  const wsUrl = loadSettings().wsUrl;
   const uid = useMemo(() => getOrCreateUid(), []);
 
   function playTone(frequency: number, durationMs: number) {
@@ -93,12 +100,12 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     }
 
     const next: Record<string, React.CSSProperties> = {
-      [sourceSquare]: { background: "rgba(45, 135, 255, 0.35)" }
+      [sourceSquare]: { background: "rgba(200, 169, 126, 0.45)" }
     };
 
     for (const move of moves) {
       next[move.to] = {
-        background: "radial-gradient(circle, rgba(0,0,0,.2) 25%, transparent 25%)",
+        background: "radial-gradient(circle, rgba(18,18,18,.25) 22%, transparent 22%)",
         borderRadius: "50%"
       };
     }
@@ -118,6 +125,14 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     };
 
     return sendJson(socketRef.current, payload);
+  }
+
+  function sendNewGame() {
+    return sendJson(socketRef.current, {
+      type: "new_game",
+      uid,
+      roomId
+    });
   }
 
   function onSquareClick({ square, piece }: SquareHandlerArgs) {
@@ -156,6 +171,20 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     }
 
     setDisplayFen(optimisticGame.fen());
+    setSnapshot((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        fen: optimisticGame.fen(),
+        turn: prev.turn === "w" ? "b" : "w",
+        whiteMs: 60_000,
+        blackMs: 60_000,
+        serverNow: Date.now()
+      };
+    });
     playMoveSound();
     sendMove(moveFrom, square);
     clearSelection();
@@ -174,6 +203,11 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
   }, []);
 
   useEffect(() => {
+    const timer = setInterval(() => setClockNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!isMounted) {
       return;
     }
@@ -183,13 +217,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
 
     socket.addEventListener("open", () => {
       setStatus(`Connected: ${roomId}`);
-      const joinMessage = {
-        type: "join",
-        mode,
-        roomId,
-        uid
-      } as const;
-      sendJson(socket, joinMessage);
+      sendJson(socket, { type: "join", mode, roomId, uid });
     });
 
     socket.addEventListener("close", () => setStatus("Disconnected"));
@@ -235,40 +263,109 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     };
   }, [isMounted, mode, roomId, uid, wsUrl, myColor]);
 
-  const turnLabel = !snapshot
-    ? "Loading"
-    : snapshot.isGameOver
-      ? "Game Over"
-      : snapshot.turn === myColor
-        ? "Your Turn"
-        : `${opponentLabel}'s Turn`;
+  const whiteBase = snapshot?.whiteMs ?? 60_000;
+  const blackBase = snapshot?.blackMs ?? 60_000;
+  const elapsedSinceServer = snapshot ? Math.max(0, clockNow - snapshot.serverNow) : 0;
+  const whiteLive = snapshot?.turn === "w" && !snapshot?.isGameOver ? whiteBase - elapsedSinceServer : whiteBase;
+  const blackLive = snapshot?.turn === "b" && !snapshot?.isGameOver ? blackBase - elapsedSinceServer : blackBase;
+
+  const myMs = myColor === "w" ? whiteLive : blackLive;
+  const oppMs = myColor === "w" ? blackLive : whiteLive;
+  const myTurn = snapshot?.turn === myColor && !snapshot?.isGameOver;
+  const turnBanner = myTurn ? "Your Turn" : `${opponentLabel}'s Turn`;
+
+  const myCaptured = myColor === "w" ? snapshot?.capturedByWhite ?? [] : snapshot?.capturedByBlack ?? [];
+  const oppCaptured = myColor === "w" ? snapshot?.capturedByBlack ?? [] : snapshot?.capturedByWhite ?? [];
+
+  const titleLabel = "LITTLE KNIGHTS";
+  const resultLabel = snapshot?.winner
+    ? snapshot.winner === myColor
+      ? "You Win"
+      : `${opponentLabel} Wins`
+    : "Draw";
+
+  const endReason = snapshot?.endReason === "timeout" ? "Time Up" : snapshot?.endReason === "checkmate" ? "Checkmate" : "Draw";
 
   const options: ChessboardOptions = {
     id: `${mode}-${roomId}`,
     allowDragging: false,
     onSquareClick,
     position: displayFen,
-    boardOrientation: myColor === "w" ? "white" : "black",
+    boardOrientation: flipped ? (myColor === "w" ? "black" : "white") : myColor === "w" ? "white" : "black",
     squareStyles: optionSquares,
-    darkSquareStyle: { backgroundColor: "#bd8457" },
-    lightSquareStyle: { backgroundColor: "#e6c99a" }
+    darkSquareStyle: { backgroundColor: "#8b6048" },
+    lightSquareStyle: { backgroundColor: "#c8a97e" }
   };
 
   return (
-    <section className="lk-shell">
-      <ChessHeader turnLabel={turnLabel} />
-      <PlayerRow opponentLabel={opponentLabel} />
-      <CapturedTray
-        capturedByWhite={snapshot?.capturedByWhite ?? []}
-        capturedByBlack={snapshot?.capturedByBlack ?? []}
-      />
-      <button className="lk-sound-toggle" onClick={toggleSound} type="button">
-        {soundEnabled ? "🔊" : "🔇"}
-      </button>
+    <section className="lk-skin-shell">
+      <div className="lk-phone-shell">
+        <header className="lk-nav">
+          <Link className="lk-back" to="/">‹</Link>
+          <p className="lk-nav-title">{titleLabel}</p>
+          <button className="lk-sound-toggle" onClick={toggleSound} type="button">{soundEnabled ? "🔊" : "🔇"}</button>
+        </header>
 
-      <div className="lk-board-wrap">{isMounted ? <Chessboard options={options} /> : <div className="lk-board-placeholder" />}</div>
+        <div className="h-12.5 flex items-center justify-center">
+          <p className="lk-turn-inline">{myTurn ? "your turn" : `${opponentLabel.toLowerCase()}'s turn`}</p>
+        </div>
 
-      <p className="lk-room-state">{title} | {status}</p>
+        <section className="lk-player-bar lk-player-bar-top">
+          <div className="lk-bar-left">
+            <img alt="Opponent avatar" className="lk-avatar-img lk-avatar-dark" src="/avatars/ai.svg" />
+            <div>
+              <strong className="lk-bar-name">{opponentLabel}</strong>
+              <div className="lk-bar-captured"><CapturedTray capturedByWhite={oppCaptured} capturedByBlack={[]} /></div>
+            </div>
+          </div>
+          <div className={`lk-clock ${!myTurn ? "lk-clock-active" : ""}`}>{formatMs(oppMs)}</div>
+        </section>
+
+        <div className="lk-board-frame">{isMounted ? <Chessboard options={options} /> : <div className="lk-board-placeholder" />}</div>
+
+        <section className="lk-player-bar lk-player-bar-bottom">
+          <div className="lk-bar-left">
+            <img alt="Your avatar" className="lk-avatar-img" src="/avatars/me.svg" />
+            <div>
+              <strong className="lk-bar-name">You</strong>
+           
+              <div className="lk-bar-captured"><CapturedTray capturedByWhite={myCaptured} capturedByBlack={[]} /></div>
+            </div>
+          </div>
+          <div className={`lk-clock ${myTurn ? "lk-clock-active" : ""}`}>{formatMs(myMs)}</div>
+        </section>
+
+        {/* <div className="lk-actions-row">
+          <button className="lk-action-btn" type="button">½ Draw</button>
+          <button className="lk-action-btn lk-action-danger" type="button">Resign</button>
+          <button className="lk-action-btn" onClick={() => setFlipped((prev) => !prev)} type="button">⇅ Flip</button>
+        </div> */}
+
+        <div className="lk-status-row">
+     
+          <p className="lk-room-state">{status}</p>
+        </div>
+
+        <footer className="lk-bottom-nav">
+          <span className="lk-bottom-active-line" />
+          <span className="lk-nav-item lk-nav-item-active">♟ GAME</span>
+          <span className="lk-nav-item">⚑ BRACKET</span>
+          <span className="lk-nav-item">◎ WALLET</span>
+          <span className="lk-nav-item">☰ MENU</span>
+        </footer>
+
+        {snapshot?.isGameOver ? (
+          <div className="lk-modal-backdrop">
+            <div className="lk-modal lk-modal-dark">
+              <h2>{resultLabel}</h2>
+              <p>{endReason}</p>
+              <button className="lk-action-btn lk-action-primary" onClick={sendNewGame} type="button">
+                Play Again
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

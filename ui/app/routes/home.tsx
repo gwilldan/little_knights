@@ -10,7 +10,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Home() {
   return (
-    <main className="lk-menu-screen ">
+    <main className="lk-menu-screen flex flex-col items-center justify-center">
       <section className="lk-menu-panel">
         <h1 className="lk-menu-title">Little Knights</h1>
 
@@ -19,7 +19,7 @@ export default function Home() {
             One Player
           </Link>
           <Link className="lk-menu-button" to="/multiplayer/room-1">
-            Two Player
+            Two Players
           </Link>
           <Link className="lk-menu-button" to="/options">
             Options
@@ -27,8 +27,8 @@ export default function Home() {
         </nav>
       </section>
 
-      <aside className="lk-menu-piece" aria-hidden>
-        ♞
+      <aside className="lk-menu-piece" aria-hidden  >
+        <p className="text-[200px] leading-25">♞</p>
       </aside>
     </main>
   );

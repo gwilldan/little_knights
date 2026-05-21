@@ -1,4 +1,6 @@
 export type GameMode = "single" | "multiplayer";
+export type PieceColor = "w" | "b";
+export type GameEndReason = "checkmate" | "draw" | "timeout";
 
 export type LegalMove = {
   from: string;
@@ -11,11 +13,16 @@ export type GameSnapshotMessage = {
   roomId: string;
   mode: GameMode;
   fen: string;
-  turn: "w" | "b";
+  turn: PieceColor;
   isGameOver: boolean;
   legalMoves: LegalMove[];
   capturedByWhite: string[];
   capturedByBlack: string[];
+  whiteMs: number;
+  blackMs: number;
+  winner: PieceColor | null;
+  endReason: GameEndReason | null;
+  serverNow: number;
 };
 
 export type JoinedMessage = {
@@ -23,7 +30,7 @@ export type JoinedMessage = {
   roomId: string;
   mode: GameMode;
   uid: string;
-  color: "w" | "b";
+  color: PieceColor;
 };
 
 export type ErrorMessage = {
@@ -49,4 +56,10 @@ export type MoveMessage = {
   promotion?: string;
 };
 
-export type ClientMessage = JoinMessage | MoveMessage;
+export type NewGameMessage = {
+  type: "new_game";
+  uid: string;
+  roomId: string;
+};
+
+export type ClientMessage = JoinMessage | MoveMessage | NewGameMessage;
