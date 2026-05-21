@@ -62,7 +62,7 @@
   }
 
   .lk-turn-inline {
-    @apply text-[10px] uppercase text-[#c8a97e];
+    @apply text-[14px] uppercase text-[#c8a97e];
   }
 
   .lk-bar-captured .lk-captured {
@@ -116,7 +116,41 @@
   }
 
   .lk-status-row {
-    @apply flex items-center gap-2 px-3;
+    @apply mt-2 flex items-center gap-2 px-3;
+  }
+
+  .lk-status-dot {
+    @apply relative h-2.5 w-2.5 rounded-full;
+  }
+
+  .lk-status-dot::after {
+    content: "";
+    @apply absolute inset-0 rounded-full opacity-70;
+    animation: lkPing 1.25s ease-out infinite;
+  }
+
+  .lk-dot-connected {
+    @apply bg-green-500;
+  }
+
+  .lk-dot-connected::after {
+    @apply bg-green-500;
+  }
+
+  .lk-dot-connecting {
+    @apply bg-yellow-500;
+  }
+
+  .lk-dot-connecting::after {
+    @apply bg-yellow-500;
+  }
+
+  .lk-dot-disconnected {
+    @apply bg-red-500;
+  }
+
+  .lk-dot-disconnected::after {
+    @apply bg-red-500;
   }
 
   .lk-turn-banner {
@@ -167,6 +201,10 @@
     @apply mt-2 text-xs uppercase tracking-[0.08em] text-[#b0814a];
   }
 
+  .lk-modal-actions {
+    @apply mt-3 flex gap-2;
+  }
+
   .lk-menu-screen {
     @apply grid min-h-dvh items-center gap-3 p-6;
     grid-template-columns: minmax(280px, 520px) minmax(150px, 1fr);
@@ -197,6 +235,18 @@
     border-color: #d4b27a;
     background: linear-gradient(180deg, #f0e1b8, #dcc090);
     color: #5e2f15;
+  }
+}
+
+@keyframes lkPing {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
   }
 }
 

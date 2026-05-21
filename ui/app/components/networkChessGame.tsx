@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
 import CapturedTray from "~/components/chess/CapturedTray";
 import { loadSettings, saveSettings } from "~/utils/settings";
 import { getOrCreateUid } from "~/utils/user";
-import type { ClientMessage, GameMode, GameSnapshotMessage, JoinedMessage, MoveMessage, PieceColor, ServerMessage } from "~/types/game";
+import type {
+  ClientMessage,
+  GameMode,
+  GameSnapshotMessage,
+  JoinedMessage,
+  MoveMessage,
+  PieceColor,
+  ServerMessage
+} from "~/types/game";
 
 type NetworkChessGameProps = {
   mode: GameMode;
@@ -13,6 +21,8 @@ type NetworkChessGameProps = {
   title: string;
   opponentLabel: string;
 };
+
+type ConnectionState = "connecting" | "connected" | "disconnected";
 
 function sendJson(socket: WebSocket | null, payload: ClientMessage) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -31,7 +41,9 @@ function formatMs(ms: number) {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-export default function NetworkChessGame({ mode, roomId, title, opponentLabel }: NetworkChessGameProps) {
+export default function NetworkChessGame({ mode, roomId, opponentLabel }: NetworkChessGameProps) {
+  const navigate = useNavigate();
+
   const [isMounted, setIsMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshotMessage | null>(null);
   const [displayFen, setDisplayFen] = useState<string>("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
@@ -39,9 +51,12 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
   const [moveFrom, setMoveFrom] = useState("");
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
   const [status, setStatus] = useState("Connecting...");
+  const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [clockNow, setClockNow] = useState(Date.now());
   const [flipped, setFlipped] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -212,16 +227,27 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
       return;
     }
 
+    setConnectionState("connecting");
+    setStatus("Connecting...");
+
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
     socket.addEventListener("open", () => {
-      setStatus(`Connected: ${roomId}`);
+      setConnectionState("connected");
+      setStatus("Connected");
       sendJson(socket, { type: "join", mode, roomId, uid });
     });
 
-    socket.addEventListener("close", () => setStatus("Disconnected"));
-    socket.addEventListener("error", () => setStatus("Connection error"));
+    socket.addEventListener("close", () => {
+      setConnectionState("disconnected");
+      setStatus("Disconnected");
+    });
+
+    socket.addEventListener("error", () => {
+      setConnectionState("disconnected");
+      setStatus("Disconnected");
+    });
 
     socket.addEventListener("message", (event) => {
       let message: ServerMessage;
@@ -261,7 +287,7 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
       socket.close();
       socketRef.current = null;
     };
-  }, [isMounted, mode, roomId, uid, wsUrl, myColor]);
+  }, [isMounted, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
 
   const whiteBase = snapshot?.whiteMs ?? 60_000;
   const blackBase = snapshot?.blackMs ?? 60_000;
@@ -272,12 +298,10 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
   const myMs = myColor === "w" ? whiteLive : blackLive;
   const oppMs = myColor === "w" ? blackLive : whiteLive;
   const myTurn = snapshot?.turn === myColor && !snapshot?.isGameOver;
-  const turnBanner = myTurn ? "Your Turn" : `${opponentLabel}'s Turn`;
 
   const myCaptured = myColor === "w" ? snapshot?.capturedByWhite ?? [] : snapshot?.capturedByBlack ?? [];
   const oppCaptured = myColor === "w" ? snapshot?.capturedByBlack ?? [] : snapshot?.capturedByWhite ?? [];
 
-  const titleLabel = "LITTLE KNIGHTS";
   const resultLabel = snapshot?.winner
     ? snapshot.winner === myColor
       ? "You Win"
@@ -297,12 +321,23 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
     lightSquareStyle: { backgroundColor: "#c8a97e" }
   };
 
+  const statusClass =
+    connectionState === "connected"
+      ? "lk-dot-connected"
+      : connectionState === "disconnected"
+        ? "lk-dot-disconnected"
+        : "lk-dot-connecting";
+
   return (
     <section className="lk-skin-shell">
       <div className="lk-phone-shell">
         <header className="lk-nav">
-          <Link className="lk-back" to="/">‹</Link>
-          <p className="lk-nav-title">{titleLabel}</p>
+          <button className="lk-back" onClick={() => setShowExitModal(true)} type="button">‹</button>
+          <p className="lk-nav-title flex items-center gap-1">
+            <span className="text-[20px]">♞</span>
+            LITTLE KNIGHTS
+            <span className="text-[20px]">♘</span>
+          </p>
           <button className="lk-sound-toggle" onClick={toggleSound} type="button">{soundEnabled ? "🔊" : "🔇"}</button>
         </header>
 
@@ -328,13 +363,13 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
             <img alt="Your avatar" className="lk-avatar-img" src="/avatars/me.svg" />
             <div>
               <strong className="lk-bar-name">You</strong>
-           
               <div className="lk-bar-captured"><CapturedTray capturedByWhite={myCaptured} capturedByBlack={[]} /></div>
             </div>
           </div>
           <div className={`lk-clock ${myTurn ? "lk-clock-active" : ""}`}>{formatMs(myMs)}</div>
         </section>
 
+        {/* AI MAKE SURE NOT TO UNCOMMENT THIS */}
         {/* <div className="lk-actions-row">
           <button className="lk-action-btn" type="button">½ Draw</button>
           <button className="lk-action-btn lk-action-danger" type="button">Resign</button>
@@ -342,17 +377,18 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
         </div> */}
 
         <div className="lk-status-row">
-     
+          <span className={`lk-status-dot ${statusClass}`} />
           <p className="lk-room-state">{status}</p>
         </div>
 
-        <footer className="lk-bottom-nav">
+        {/* AI MAKE SURE NOT TO UNCOMMENT THIS */}
+        {/* <footer className="lk-bottom-nav">
           <span className="lk-bottom-active-line" />
           <span className="lk-nav-item lk-nav-item-active">♟ GAME</span>
           <span className="lk-nav-item">⚑ BRACKET</span>
           <span className="lk-nav-item">◎ WALLET</span>
           <span className="lk-nav-item">☰ MENU</span>
-        </footer>
+        </footer> */}
 
         {snapshot?.isGameOver ? (
           <div className="lk-modal-backdrop">
@@ -361,6 +397,31 @@ export default function NetworkChessGame({ mode, roomId, title, opponentLabel }:
               <p>{endReason}</p>
               <button className="lk-action-btn lk-action-primary" onClick={sendNewGame} type="button">
                 Play Again
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {showExitModal ? (
+          <div className="lk-modal-backdrop">
+            <div className="lk-modal lk-modal-dark">
+              <h2>End Game?</h2>
+              <p>Do you wish to end game</p>
+              <div className="lk-modal-actions">
+                <button className="lk-action-btn" onClick={() => setShowExitModal(false)} type="button">No</button>
+                <button className="lk-action-btn lk-action-danger" onClick={() => navigate("/")} type="button">Yes</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {connectionState === "disconnected" ? (
+          <div className="lk-modal-backdrop">
+            <div className="lk-modal lk-modal-dark">
+              <h2>Disconnected</h2>
+              <p>Disconnected from server</p>
+              <button className="lk-action-btn lk-action-primary" onClick={() => setReconnectNonce((v) => v + 1)} type="button">
+                Try Again
               </button>
             </div>
           </div>
