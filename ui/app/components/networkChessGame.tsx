@@ -328,6 +328,11 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
         ? "lk-dot-disconnected"
         : "lk-dot-connecting";
 
+  const handleCloseGame = () => {
+    socketRef?.current?.close();
+    navigate("/")
+  };
+
   return (
     <section className="lk-skin-shell">
       <div className="lk-phone-shell">
@@ -409,7 +414,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
               <p>Do you wish to end game</p>
               <div className="lk-modal-actions">
                 <button className="lk-action-btn" onClick={() => setShowExitModal(false)} type="button">No</button>
-                <button className="lk-action-btn lk-action-danger" onClick={() => navigate("/")} type="button">Yes</button>
+                <button className="lk-action-btn lk-action-danger" onClick={handleCloseGame} type="button">Yes</button>
               </div>
             </div>
           </div>

@@ -7,13 +7,14 @@ export type AppSettings = {
 };
 
 const SETTINGS_KEY = "little-knights-settings";
+const WS_URL = process.env.NODE_ENV === "production" ? "ws://api.chess.gwilldan.xyz" : "ws://localhost:8080";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
   showLegalMoves: true,
   autoPromoteToQueen: true,
   boardFlipped: false,
-  wsUrl: "ws://localhost:8080"
+  wsUrl: WS_URL
 };
 
 export function loadSettings() {
