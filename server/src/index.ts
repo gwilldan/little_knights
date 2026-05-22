@@ -1,14 +1,17 @@
+import "dotenv/config"
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
-import { healthRouter } from "./routes/http/health.route.js";
-import { registerGameSocketRoutes } from "./routes/ws/game.ws.js";
-import { connectRedis } from "./services/redis.service.js";
+import { healthRouter } from "./routes/http/health.route";
+import { registerGameSocketRoutes } from "./routes/ws/game.ws";
+import { connectRedis } from "./services/redis.service";
+import { pg } from "./utils/config/db.init";
 
 const PORT = Number(process.env.PORT || 8080);
 
 async function bootstrap(): Promise<void> {
   await connectRedis();
+  await pg.connect();
 
   const app = express();
   app.use(healthRouter);

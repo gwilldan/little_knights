@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
-import type { GameRoomState, SnapshotMessage } from "../types/game.js";
-import { applyClockTick } from "../services/room.service.js";
+import type { GameRoomState, SnapshotMessage } from "../types/game";
+import { applyClockTick } from "../services/room.service";
 
 function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack: string[] } {
   const capturedByWhite: string[] = [];
@@ -29,10 +29,10 @@ export function buildSnapshot(room: GameRoomState): SnapshotMessage {
   const legalMoves = effectiveRoom.winner
     ? []
     : chess.moves({ verbose: true }).map((move) => ({
-        from: move.from,
-        to: move.to,
-        promotion: move.promotion
-      }));
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion
+    }));
 
   return {
     type: "snapshot",
@@ -41,7 +41,11 @@ export function buildSnapshot(room: GameRoomState): SnapshotMessage {
     fen: chess.fen(),
     turn: chess.turn(),
     isGameOver: chess.isGameOver() || Boolean(effectiveRoom.winner),
-    legalMoves,
+    legalMoves: legalMoves.map((move) => ({
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion || ""
+    })),
     capturedByWhite,
     capturedByBlack,
     whiteMs: Math.max(0, effectiveRoom.whiteMs),

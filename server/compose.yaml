@@ -1,7 +1,21 @@
 services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks:
+      - postgres-internal
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    env_file:
+      - .env
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    networks:
+      - redis-internal
     volumes:
       - redis_data:/data
 
@@ -9,15 +23,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime
+      target: production
     environment:
       REDIS_URL: redis://redis:6379
-      PORT: 8080
     ports:
-      - "8080:8080"
+      - 127.0.0.1:8080:8080
     depends_on:
       - redis
     restart: unless-stopped
+    networks:
+      - redis-internal
+      - postgres-internal
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.server.rule=Host(`api.chess.gwilldan.xyz`)
+      - traefik.http.routers.server.entrypoints=websecure
+      - traefik.http.routers.server.tls=true
+      - traefik.http.routers.server.tls.certresolver=le
 
 volumes:
   redis_data:
+  postgres_data:
+
+networks:
+  redis-internal:
+    internal: true
+
+  postgres-internal:
+    internal: true
+
+  proxy:
+    external: true

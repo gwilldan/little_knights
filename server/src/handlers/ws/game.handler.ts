@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
-import type { GameMode, InboundMessage, MoveMessage, SocketClient } from "../../types/game.js";
-import type { ManagedWebSocket } from "../../types/ws.js";
-import { selectBestMove } from "../../services/chessEngine.service.js";
+import type { GameMode, InboundMessage, MoveMessage, SocketClient } from "../../types/game";
+import type { ManagedWebSocket } from "../../types/ws";
+import { selectBestMove } from "../../services/chessEngine.service";
 import {
   applyClockTick,
   assignColor,
@@ -11,9 +11,9 @@ import {
   resetTurnClocks,
   saveRoom,
   withGameResult
-} from "../../services/room.service.js";
-import { buildSnapshot } from "../../utils/gameSnapshot.js";
-import { sendJson } from "../../utils/socket.js";
+} from "../../services/room.service";
+import { buildSnapshot } from "../../utils/gameSnapshot";
+import { sendJson } from "../../utils/socket";
 
 type HandlerDeps = {
   normalizeMode: (value: string) => GameMode;

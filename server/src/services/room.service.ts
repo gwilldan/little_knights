@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
-import type { GameEndReason, GameMode, GameRoomState, PieceColor } from "../types/game.js";
-import { redis } from "./redis.service.js";
+import type { GameEndReason, GameMode, GameRoomState, PieceColor } from "../types/game";
+import { redis } from "./redis.service";
 
 const ROOM_KEY_PREFIX = "lk:room:";
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

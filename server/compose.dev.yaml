@@ -1,25 +1,36 @@
 services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    env_file:
+      - .env
+
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
 
   server:
     build:
       context: .
       dockerfile: Dockerfile
-      target: deps
+      target: development
     working_dir: /app
-    volumes:
-      - ./:/app
+    restart: unless-stopped
     environment:
       REDIS_URL: redis://redis:6379
-      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     command: npm run dev
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - redis
+      - postgres
     develop:
       watch:
         - action: sync
@@ -30,3 +41,7 @@ services:
           target: /app/tsconfig.json
         - action: rebuild
           path: ./package.json
+
+volumes:
+  postgres_data:
+  redis_data:

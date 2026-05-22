@@ -1,6 +1,6 @@
 import type { WebSocketServer } from "ws";
-import { onSocketClose, onSocketMessage } from "../../handlers/ws/game.handler.js";
-import type { ManagedWebSocket } from "../../types/ws.js";
+import { onSocketClose, onSocketMessage } from "../../handlers/ws/game.handler";
+import type { ManagedWebSocket } from "../../types/ws";
 
 function normalizeMode(value: string): "single" | "multiplayer" {
   return value === "single" ? "single" : "multiplayer";
