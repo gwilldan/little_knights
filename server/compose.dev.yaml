@@ -33,10 +33,10 @@ services:
       - postgres
     develop:
       watch:
-        - action: sync
+        - action: sync+restart
           path: ./src
           target: /app/src
-        - action: sync
+        - action: sync+restart
           path: ./tsconfig.json
           target: /app/tsconfig.json
         - action: rebuild
