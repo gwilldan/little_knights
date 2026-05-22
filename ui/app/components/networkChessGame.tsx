@@ -4,6 +4,7 @@ import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
 import CapturedTray from "~/components/chess/CapturedTray";
 import { loadSettings, saveSettings } from "~/utils/settings";
+import { signInUser } from "~/utils/auth";
 import { getOrCreateUid } from "~/utils/user";
 import type {
   ClientMessage,
@@ -57,6 +58,11 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
   const [flipped, setFlipped] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [reconnectNonce, setReconnectNonce] = useState(0);
+  const isSingle = mode === "single";
+  const [showStartModal, setShowStartModal] = useState(isSingle);
+  const [readyToPlay, setReadyToPlay] = useState(false);
+  const [startLoading, setStartLoading] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -200,7 +206,6 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
         serverNow: Date.now()
       };
     });
-    playMoveSound();
     sendMove(moveFrom, square);
     clearSelection();
   }
@@ -218,12 +223,44 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
   }, []);
 
   useEffect(() => {
+    if (!isMounted || isSingle) {
+      return;
+    }
+
+    signInUser(uid).then((signedIn) => {
+      if (!signedIn) {
+        setStatus("Sign in failed");
+        setConnectionState("disconnected");
+        return;
+      }
+
+      setReadyToPlay(true);
+    });
+  }, [isMounted, isSingle, uid]);
+
+  useEffect(() => {
     const timer = setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, []);
 
+  async function handleStartPlay() {
+    setStartLoading(true);
+    setStartError(null);
+
+    const signedIn = await signInUser(uid);
+    if (!signedIn) {
+      setStartError("Sign in failed. Register your player before competing.");
+      setStartLoading(false);
+      return;
+    }
+
+    setReadyToPlay(true);
+    setShowStartModal(false);
+    setStartLoading(false);
+  }
+
   useEffect(() => {
-    if (!isMounted) {
+    if (!isMounted || !readyToPlay) {
       return;
     }
 
@@ -287,7 +324,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
       socket.close();
       socketRef.current = null;
     };
-  }, [isMounted, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
+  }, [isMounted, readyToPlay, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
 
   const whiteBase = snapshot?.whiteMs ?? 60_000;
   const blackBase = snapshot?.blackMs ?? 60_000;
@@ -301,6 +338,8 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
 
   const myCaptured = myColor === "w" ? snapshot?.capturedByWhite ?? [] : snapshot?.capturedByBlack ?? [];
   const oppCaptured = myColor === "w" ? snapshot?.capturedByBlack ?? [] : snapshot?.capturedByWhite ?? [];
+  const myCapturedColor = myColor === "w" ? "b" : "w";
+  const oppCapturedColor = myColor === "w" ? "w" : "b";
 
   const resultLabel = snapshot?.winner
     ? snapshot.winner === myColor
@@ -355,7 +394,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
             <img alt="Opponent avatar" className="lk-avatar-img lk-avatar-dark" src="/avatars/ai.svg" />
             <div>
               <strong className="lk-bar-name">{opponentLabel}</strong>
-              <div className="lk-bar-captured"><CapturedTray capturedByWhite={oppCaptured} capturedByBlack={[]} /></div>
+              <div className="lk-bar-captured"><CapturedTray pieceColor={oppCapturedColor} pieces={oppCaptured} /></div>
             </div>
           </div>
           <div className={`lk-clock ${!myTurn ? "lk-clock-active" : ""}`}>{formatMs(oppMs)}</div>
@@ -368,7 +407,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
             <img alt="Your avatar" className="lk-avatar-img" src="/avatars/me.svg" />
             <div>
               <strong className="lk-bar-name">You</strong>
-              <div className="lk-bar-captured"><CapturedTray capturedByWhite={myCaptured} capturedByBlack={[]} /></div>
+              <div className="lk-bar-captured"><CapturedTray pieceColor={myCapturedColor} pieces={myCaptured} /></div>
             </div>
           </div>
           <div className={`lk-clock ${myTurn ? "lk-clock-active" : ""}`}>{formatMs(myMs)}</div>
@@ -420,7 +459,45 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
           </div>
         ) : null}
 
-        {connectionState === "disconnected" ? (
+        {showStartModal ? (
+          <div className="lk-modal-backdrop">
+            <div className="lk-modal lk-modal-dark lk-start-modal">
+              <button
+                aria-label="Exit to home"
+                className="lk-modal-close"
+                onClick={() => navigate("/")}
+                type="button"
+              >
+                ×
+              </button>
+
+              <div aria-hidden className="lk-start-loader">
+                <span className="lk-start-loader-piece">♞</span>
+                <span className="lk-start-loader-ring" />
+              </div>
+
+              <p className="lk-start-kicker">Timed Competition</p>
+              <h2>Little Knights</h2>
+              <p className="lk-start-copy">
+                Entry costs $1. Win against the bot and take home $2 (100% profit). If your clock hits zero, you lose.
+              </p>
+              <p className="lk-start-terms">By proceeding, you agree to the competition terms.</p>
+
+              {startError ? <p className="lk-start-error">{startError}</p> : null}
+
+              <button
+                className="lk-action-btn lk-action-primary lk-start-play"
+                disabled={startLoading}
+                onClick={handleStartPlay}
+                type="button"
+              >
+                {startLoading ? "Preparing..." : "Play"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {connectionState === "disconnected" && readyToPlay ? (
           <div className="lk-modal-backdrop">
             <div className="lk-modal lk-modal-dark">
               <h2>Disconnected</h2>

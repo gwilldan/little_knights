@@ -58,6 +58,20 @@ async function broadcastRoom(roomId: string): Promise<void> {
   }
 }
 
+function requireAuth(ws: ManagedWebSocket, uid: string): boolean {
+  if (!ws.authUserId) {
+    sendJson(ws, { type: "error", message: "Unauthorized" });
+    return false;
+  }
+
+  if (ws.authUserId !== uid) {
+    sendJson(ws, { type: "error", message: "Invalid session" });
+    return false;
+  }
+
+  return true;
+}
+
 async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: HandlerDeps): Promise<void> {
   if (message.type !== "join") {
     sendJson(ws, { type: "error", message: "Invalid join payload." });
@@ -65,6 +79,10 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
   }
 
   const { roomId, uid, mode } = message;
+
+  if (!requireAuth(ws, uid)) {
+    return;
+  }
 
   if (!roomId || !uid || !mode) {
     sendJson(ws, { type: "error", message: "Invalid join payload." });
@@ -98,6 +116,11 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
 
 async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<void> {
   const { roomId, uid, from, to, promotion } = message;
+
+  if (!requireAuth(ws, uid)) {
+    return;
+  }
+
   const loaded = await getRoom(roomId);
 
   if (!loaded) {
@@ -184,6 +207,10 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 }
 
 async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string): Promise<void> {
+  if (!requireAuth(ws, uid)) {
+    return;
+  }
+
   const room = await getRoom(roomId);
   if (!room) {
     sendJson(ws, { type: "error", message: "Room not found." });

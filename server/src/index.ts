@@ -8,6 +8,7 @@ import { pg } from "./utils/config/db.init";
 import { healthRouter, userRouter } from "./routes/http";
 
 const PORT = Number(process.env.PORT || 8080);
+const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
 
 async function bootstrap(): Promise<void> {
   await connectRedis();
@@ -16,6 +17,19 @@ async function bootstrap(): Promise<void> {
   const app = express();
 
   // middlewares
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", CORS_ORIGIN);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+
+    next();
+  });
   app.use(express.json());
 
   // routers

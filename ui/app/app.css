@@ -74,7 +74,23 @@
   }
 
   .lk-bar-captured .lk-chip {
-    @apply h-[18px] min-w-[14px] text-sm;
+    @apply relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded px-0.5 text-sm leading-none;
+  }
+
+  .lk-bar-captured .lk-chip-dark {
+    @apply text-[#666];
+  }
+
+  .lk-bar-captured .lk-chip-light {
+    @apply text-[#ddd];
+  }
+
+  .lk-bar-captured .lk-chip-stack {
+    @apply mr-0.5;
+  }
+
+  .lk-bar-captured .lk-chip-count {
+    @apply absolute -right-1 -top-1 rounded-full bg-[#1a120a] px-0.5 text-[8px] leading-none text-[#c8a97e];
   }
 
   .lk-clock {
@@ -203,6 +219,66 @@
 
   .lk-modal-actions {
     @apply mt-3 flex gap-2;
+  }
+
+  .lk-start-modal {
+    @apply relative pt-8;
+  }
+
+  .lk-modal-close {
+    @apply absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#4a3a10] bg-[#120d07] text-xl leading-none text-[#c8a97e];
+  }
+
+  .lk-start-loader {
+    @apply relative mx-auto mb-3 grid h-16 w-16 place-items-center;
+  }
+
+  .lk-start-loader-piece {
+    @apply text-3xl text-[#e7c188];
+    animation: lkKnightPulse 1.2s ease-in-out infinite;
+  }
+
+  .lk-start-loader-ring {
+    @apply absolute inset-0 rounded-full border-2 border-[#4a3a10] border-t-[#c8a97e];
+    animation: lkLoaderSpin 1s linear infinite;
+  }
+
+  .lk-start-kicker {
+    @apply m-0 text-[10px] uppercase tracking-[0.14em] text-[#c8a97e];
+  }
+
+  .lk-start-copy {
+    @apply text-[11px] normal-case leading-relaxed tracking-normal text-[#d2b48c];
+  }
+
+  .lk-start-terms {
+    @apply mt-3 text-[10px] normal-case tracking-normal text-[#8f6d43];
+  }
+
+  .lk-start-error {
+    @apply mt-2 text-[10px] normal-case tracking-normal text-[#d46a6a];
+  }
+
+  .lk-start-play {
+    @apply mt-4 w-full;
+  }
+
+  @keyframes lkLoaderSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes lkKnightPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.85;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
   }
 
   .lk-menu-screen {
