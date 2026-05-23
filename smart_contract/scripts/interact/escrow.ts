@@ -22,8 +22,8 @@ import { loadDeployment } from "../lib/deployments.js";
  */
 
 const ACTION = process.env.ACTION ?? "balance";
-const AMOUNT = process.env.AMOUNT ?? process.env.BET_AMOUNT ?? "1";
-const TOKEN_DECIMALS = Number(process.env.TOKEN_DECIMALS ?? "18");
+const AMOUNT = process.env.BET_AMOUNT ?? "1";
+const TOKEN_DECIMALS = Number(process.env.TOKEN_DECIMALS ?? "6");
 
 function parseGameId(value: string | undefined): Hex {
   if (!value) {
@@ -37,7 +37,7 @@ function parseGameId(value: string | undefined): Hex {
   return keccak256(toBytes(value));
 }
 
-const connection = await network.connect();
+const connection = await network.getOrCreate();
 const { viem } = connection;
 const publicClient = await viem.getPublicClient();
 const wallets = await viem.getWalletClients();

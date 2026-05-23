@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { network } from "hardhat";
-import { erc20Abi, parseUnits } from "viem";
+import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { loadDeployment } from "../lib/deployments.js";
 
 /**
@@ -23,7 +23,7 @@ const TOKEN_DECIMALS = Number(process.env.TOKEN_DECIMALS ?? "6");
 const connection = await network.getOrCreate();
 const { viem } = connection;
 const publicClient = await viem.getPublicClient();
-const [wallet] = await viem.getWalletClients() as any;
+const [wallet] = await viem.getWalletClients();
 const deployment = loadDeployment(connection.networkName);
 
 const storage = await viem.getContractAt("LittleKnightsStorage", deployment.storage) as any;
@@ -36,21 +36,30 @@ console.log(`Action: ${ACTION}`);
 
 switch (ACTION) {
   case "balance": {
-    // const balance = await storage.read.manager();
     const balance = await storage.read.getBalance();
     console.log(`House balance: ${balance.toString()}`);
     break;
   }
 
   case "fund": {
-    const approveHash = await wallet.writeContract({
+
+    const approval = await publicClient.readContract({
       address: deployment.stablecoin,
       abi: erc20Abi,
-      functionName: "approve",
-      args: [deployment.storage, amount],
-      account: wallet.account,
+      functionName: "allowance",
+      args: [wallet.account.address, deployment.storage],
     });
-    await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+    if (approval < amount) {
+      const approveHash = await wallet.writeContract({
+        address: deployment.stablecoin,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [deployment.storage, amount],
+        account: wallet.account,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash })
+    }
 
     const fundHash = await storage.write.fundStorage([amount], { account: wallet.account });
     await publicClient.waitForTransactionReceipt({ hash: fundHash });

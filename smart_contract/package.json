@@ -7,8 +7,8 @@
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network hardhatMainnet",
     "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:local-op": "hardhat run scripts/deploy.ts --network hardhatOp",
-    "deploy:celo-sepolia": "hardhat run scripts/deploy.ts --network celoSepolia",
+    "deploy:localOp": "hardhat run scripts/deploy.ts --network hardhatOp",
+    "deploy:celoSepolia": "hardhat run scripts/deploy.ts --network celoSepolia",
     "deploy:celo": "hardhat run scripts/deploy.ts --network celo",
     "interact:storage": "hardhat run scripts/interact/storage.ts",
     "interact:escrow": "hardhat run scripts/interact/escrow.ts"

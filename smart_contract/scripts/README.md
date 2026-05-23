@@ -2,9 +2,9 @@
 
 ## Contracts
 
-| Contract | Role |
-|----------|------|
-| `LittleKnightsStorage` | House bankroll for bot (single-player) matches |
+| Contract                     | Role                                                 |
+| ---------------------------- | ---------------------------------------------------- |
+| `LittleKnightsStorage`       | House bankroll for bot (single-player) matches       |
 | `LittleKnightsEscrowManager` | Game escrow, fees, multiplayer + single-player flows |
 
 Deploy order: **Storage** (temporary manager = deployer) → **Escrow** → `storage.setManager(escrow)`.
@@ -20,12 +20,12 @@ npm run compile
 
 ## Deploy
 
-| Network | Command |
-|---------|---------|
-| In-memory VM (ephemeral) | `npm run deploy:local` or `npm run deploy:local-op` |
-| Persistent local node | `npm run node` (terminal 1), then `npm run deploy:localhost` |
-| Celo Sepolia | `npm run deploy:celo-sepolia` |
-| Celo Mainnet | `npm run deploy:celo` |
+| Network                  | Command                                                      |
+| ------------------------ | ------------------------------------------------------------ |
+| In-memory VM (ephemeral) | `npm run deploy:local` or `npm run deploy:localOp`           |
+| Persistent local node    | `npm run node` (terminal 1), then `npm run deploy:localhost` |
+| Celo Sepolia             | `npm run deploy:celoSepolia`                                 |
+| Celo Mainnet             | `npm run deploy:celo`                                        |
 
 Addresses are saved to `deployments/<network>.json`.
 
