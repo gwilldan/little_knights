@@ -1,0 +1,29 @@
+{
+  "name": "smart_contract",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network hardhatMainnet",
+    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:local-op": "hardhat run scripts/deploy.ts --network hardhatOp",
+    "deploy:celo-sepolia": "hardhat run scripts/deploy.ts --network celoSepolia",
+    "deploy:celo": "hardhat run scripts/deploy.ts --network celo",
+    "interact:storage": "hardhat run scripts/interact/storage.ts",
+    "interact:escrow": "hardhat run scripts/interact/escrow.ts"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.6",
+    "@nomicfoundation/hardhat-viem": "^3.0.4",
+    "@nomicfoundation/hardhat-verify": "^3.0.0",
+    "@types/node": "^22.19.19",
+    "hardhat": "^3.5.1",
+    "typescript": "~5.8.0",
+    "viem": "^2.50.4"
+  }
+}
