@@ -4,8 +4,10 @@ import { Wallet } from "lucide-react";
 import { createPublicClient, erc20Abi, formatUnits, http, keccak256, toBytes } from "viem";
 import { celoSepolia } from "viem/chains";
 import NetworkChessGame from "~/components/networkChessGame";
-import { useAppSession, signInUser, saveSingleGame, getOrCreateUid } from "~/utils";
-
+import { useAppSession } from "~/utils/app-session";
+import { signInUser } from "~/utils/auth";
+import { saveSingleGame } from "~/utils/game";
+import { getOrCreateUid } from "~/utils/user";
 
 export default function SingleChessGame() {
   const navigate = useNavigate();
@@ -16,8 +18,7 @@ export default function SingleChessGame() {
   const [startError, setStartError] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<string>("--");
 
-  const uid = useMemo(() => getOrCreateUid(walletAddress), [walletAddress]);
-  const roomId = useMemo(() => keccak256(toBytes(`lk-game-${Date.now()}`)), [uid]);
+  const roomId = useMemo(() => keccak256(toBytes(`lk-game-${Date.now()}`)), [walletAddress]);
 
   useEffect(() => {
     if (!walletAddress) {
@@ -55,7 +56,7 @@ export default function SingleChessGame() {
       }
     }
 
-    loadUsdcBalance();
+    void loadUsdcBalance();
     return () => {
       active = false;
     };
@@ -89,9 +90,8 @@ export default function SingleChessGame() {
         roomId,
         gameId,
         txHash,
-        walletAddress,
         betAmount: "1",
-        uid,
+        uid: walletAddress,
       });
 
       if (!saved) {
@@ -105,7 +105,12 @@ export default function SingleChessGame() {
       return;
     }
 
-    const signedIn = await signInUser(uid);
+    const signedIn = await signInUser({
+      id: walletAddress,
+      name: `Player-${walletAddress.slice(2, 8)}`,
+      balance: "0",
+    });
+
     if (!signedIn) {
       setStartError("Sign in failed. Register your player before competing.");
       setStartLoading(false);
@@ -118,7 +123,7 @@ export default function SingleChessGame() {
 
   return (
     <>
-      <NetworkChessGame enabled={readyToPlay} mode="single" opponentLabel="AI" roomId={roomId} title="Single Player" uid={uid} />
+      <NetworkChessGame enabled={readyToPlay} mode="single" opponentLabel="AI" roomId={roomId} title="Single Player" uid={walletAddress!} />
 
       {!readyToPlay ? (
         <div className="lk-modal-backdrop lk-modal-backdrop-fixed">

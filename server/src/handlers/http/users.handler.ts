@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { usersTable } from "../../db/schema";
 import { db } from "../../db/db.init";
 import { eq } from "drizzle-orm";
-import { UserInsert, userInsert } from "../../utils/zod.config";
+import { userInsert } from "../../utils/zod.config";
 import {
   AUTH_COOKIE,
   AUTH_COOKIE_MAX_AGE_MS,
@@ -33,8 +33,7 @@ export const getUser = async (req: Request, res: Response) => {
 
 export const signInUser = async (req: Request, res: Response) => {
   try {
-
-    let _user: UserInsert;
+    let _user: { id: string; name: string };
 
     const reqId = (req.query.id ?? req.body?.id) as string | undefined;
     if (!reqId?.trim()) {
@@ -50,7 +49,14 @@ export const signInUser = async (req: Request, res: Response) => {
 
     // create user if not exists, otherwise use existing user
     if (!user) {
-      const newUser = userInsert.parse({ ...req.body });
+      const parsedBalance = BigInt(req.body?.balance ?? "0");
+      const fallbackName = `Player-${reqId.trim().slice(2, 8)}`;
+      const newUser = userInsert.parse({
+        id: reqId.trim(),
+        name: req.body?.name ?? fallbackName,
+        balance: parsedBalance,
+        joined: new Date(),
+      });
       await db.insert(usersTable).values(newUser);
       _user = newUser;
     } else {
@@ -66,10 +72,11 @@ export const signInUser = async (req: Request, res: Response) => {
       path: "/",
     });
 
+    console.log(`User signed in with id ${_user.id}`, Date.now());
+
     res.json({
       id: _user.id,
       name: _user.name,
-      balance: _user.balance.toString(),
     });
   } catch (error) {
     console.log("error from signInUser:", error);

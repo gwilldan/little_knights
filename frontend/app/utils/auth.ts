@@ -1,9 +1,19 @@
-const API_URL = process.env.NODE_ENV === "production" ? "https://api.chess.gwilldan.xyz" : "http://localhost:8080";
+import { API_URL } from "~/constants";
 
-export async function signInUser(userId: string) {
-  const response = await fetch(`${API_URL}/user/signin?id=${encodeURIComponent(userId)}`, {
+type SignInPayload = {
+  id: string;
+  name: string;
+  balance: string;
+};
+
+export async function signInUser(payload: SignInPayload) {
+  const response = await fetch(`${API_URL}/user/signin?id=${encodeURIComponent(payload.id)}`, {
     method: "POST",
-    credentials: "include"
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 
   return response.ok;

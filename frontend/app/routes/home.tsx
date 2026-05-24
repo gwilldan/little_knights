@@ -15,7 +15,7 @@ export default function Home() {
         <h1 className="lk-menu-title">Little Knights</h1>
 
         <nav className="lk-menu-buttons" aria-label="Main menu">
-          <Link className="lk-menu-button" to="/single">
+          <Link className="lk-menu-button" to="/single/play">
             One Player
           </Link>
           <Link className="lk-menu-button" to="/multiplayer/room-1">

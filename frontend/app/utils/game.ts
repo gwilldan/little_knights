@@ -1,10 +1,9 @@
-const API_URL = process.env.NODE_ENV === "production" ? "https://api.chess.gwilldan.xyz" : "http://localhost:8080";
+import { API_URL } from "../constants";
 
 type SaveSingleGamePayload = {
   roomId: string;
   gameId: string;
   txHash: string;
-  walletAddress: string;
   betAmount: string;
   uid: string;
 };

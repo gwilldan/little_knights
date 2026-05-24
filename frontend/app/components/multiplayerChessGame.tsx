@@ -18,7 +18,17 @@ export default function MultiplayerChessGame({ roomId, title }: MultiplayerChess
     let active = true;
 
     async function start() {
-      const signedIn = await signInUser(uid);
+      if (!walletAddress) {
+        setReady(false);
+        return;
+      }
+
+      const signedIn = await signInUser({
+        id: walletAddress,
+        name: `Player-${walletAddress.slice(2, 8)}`,
+        balance: "0",
+      });
+
       if (!active) return;
 
       if (!signedIn) {
@@ -29,12 +39,12 @@ export default function MultiplayerChessGame({ roomId, title }: MultiplayerChess
       setReady(true);
     }
 
-    start();
+    void start();
 
     return () => {
       active = false;
     };
-  }, [uid]);
+  }, [uid, walletAddress]);
 
   return <NetworkChessGame enabled={ready} mode="multiplayer" opponentLabel="Opponent" roomId={roomId} title={title} uid={uid} />;
 }

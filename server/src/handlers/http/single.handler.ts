@@ -4,13 +4,24 @@ import { gamesTable } from "../../db/schema";
 
 export const saveSingleGame = async (req: Request, res: Response) => {
   try {
-    const { roomId, uid } = req.body as {
+    const { roomId, uid, walletAddress } = req.body as {
       roomId?: string;
       uid?: string;
+      walletAddress?: string;
     };
 
     if (!roomId?.trim() || !uid?.trim()) {
       res.status(400).json({ message: "roomId and uid are required" });
+      return;
+    }
+
+    if (!req.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (walletAddress && walletAddress.trim() !== req.userId) {
+      res.status(403).json({ message: "Invalid session user." });
       return;
     }
 

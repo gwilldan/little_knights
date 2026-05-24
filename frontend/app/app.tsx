@@ -2,6 +2,8 @@ import { Outlet } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppSessionContext, type AppSessionState } from "./utils/app-session";
 import { createSingleGame as createSingleGameCall } from "./utils/contract-calls/singleGame";
+import { signInUser } from "./utils/auth";
+import { API_URL } from "./constants";
 
 export default function App() {
   const [status, setStatus] = useState<AppSessionState["status"]>("loading");
@@ -36,6 +38,20 @@ export default function App() {
 
         const [walletResult, healthResult] = await Promise.all([walletTask, healthTask]);
         if (!active) return;
+
+        if (!walletResult.address) {
+          throw new Error("Wallet connection is required.");
+        }
+
+        const signedIn = await signInUser({
+          id: walletResult.address,
+          name: `Player-${walletResult.address.slice(2, 8)}`,
+          balance: walletResult.balance,
+        });
+
+        if (!signedIn) {
+          throw new Error("Server sign-in failed.");
+        }
 
         setIsMiniPay(walletResult.isMiniPay);
         setWalletAddress(walletResult.address);
@@ -101,8 +117,6 @@ export default function App() {
 }
 
 async function checkBackendHealth() {
-  const API_URL =
-    import.meta.env.MODE === "production" ? "https://api.chess.gwilldan.xyz" : "http://localhost:8080";
 
   try {
     const response = await fetch(`${API_URL}/health`, { method: "GET" });
@@ -116,7 +130,7 @@ async function connectMiniPayWallet() {
   const browserWindow = typeof window === "undefined" ? undefined : (window as Window & { ethereum?: unknown });
 
   if (!browserWindow?.ethereum) {
-    return { isMiniPay: false, address: null as string | null };
+    return { isMiniPay: false, address: null as string | null, balance: "0" };
   }
 
   const provider = browserWindow.ethereum as {
@@ -126,14 +140,34 @@ async function connectMiniPayWallet() {
 
   const isMiniPay = provider.isMiniPay === true;
   if (!provider.request) {
-    return { isMiniPay, address: null as string | null };
+    return { isMiniPay, address: null as string | null, balance: "0" };
   }
 
   try {
     const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
-    return { isMiniPay, address: accounts[0] ?? null };
+    const address = accounts[0] ?? null;
+    const balance = address
+      ? await getNativeBalance(provider.request, address)
+      : "0";
+    return { isMiniPay, address, balance };
   } catch {
-    return { isMiniPay, address: null as string | null };
+    return { isMiniPay, address: null as string | null, balance: "0" };
+  }
+}
+
+async function getNativeBalance(
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>,
+  address: string
+) {
+  try {
+    const result = (await request({
+      method: "eth_getBalance",
+      params: [address, "latest"],
+    })) as string;
+
+    return BigInt(result).toString();
+  } catch {
+    return "0";
   }
 }
 
