@@ -64,6 +64,7 @@ switch (ACTION) {
     const fundHash = await storage.write.fundStorage([amount], { account: wallet.account });
     await publicClient.waitForTransactionReceipt({ hash: fundHash });
     console.log(`Funded storage with ${AMOUNT} tokens`);
+    console.log(`Transaction hash: ${fundHash}`);
     break;
   }
 

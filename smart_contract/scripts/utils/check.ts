@@ -24,15 +24,34 @@ console.log(`Wallet: ${wallet.account.address}`);
 switch (process.env.ACTION) {
   case "balance": {
     const nativeBalance = await publicClient.getBalance({ address: wallet.account.address });
-    const stablecoinBalance = await publicClient.readContract({
-      address: deployment.stablecoin,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [wallet.account.address],
+    const [userStablecoinBalance, storageStablecoinBalance, escrowStablecoinBalance] = await publicClient.multicall({
+      contracts: [
+        {
+          address: deployment.stablecoin,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [wallet.account.address],
+        },
+        {
+          address: deployment.stablecoin,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [deployment.storage],
+        },
+        {
+          address: deployment.stablecoin,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [deployment.escrow],
+        },
+      ],
+      allowFailure: false,
     });
 
     console.log(`Native balance: ${formatEther(nativeBalance)} CELO`);
-    console.log(`Stablecoin balance: ${formatUnits(stablecoinBalance, 6)} USDC`);
+    console.log(`User USDC balance: ${formatUnits(userStablecoinBalance, 6)} USDC`);
+    console.log(`Storage USDC balance: ${formatUnits(storageStablecoinBalance, 6)} USDC`);
+    console.log(`Escrow USDC balance: ${formatUnits(escrowStablecoinBalance, 6)} USDC`);
     break;  
     }
 
@@ -50,4 +69,3 @@ switch (process.env.ACTION) {
   default:
     console.log("Please set ACTION env variable to 'balance' or 'allowance'.");
 }       
-
