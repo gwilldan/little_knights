@@ -1,5 +1,5 @@
 services:
-  postgres:
+  db:
     image: postgres:18-alpine
     restart: unless-stopped
     networks:
@@ -24,12 +24,13 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    environment:
-      REDIS_URL: redis://redis:6379
+    env_file:
+      - .env
     ports:
       - 127.0.0.1:8080:8080
     depends_on:
       - redis
+      - db
     restart: unless-stopped
     networks:
       - redis-internal
