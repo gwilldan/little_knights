@@ -7,5 +7,6 @@ export default [
   route("single", "routes/single.tsx"),
   route("multiplayer/:roomId", "routes/multiplayer.room.tsx"),
   route("multiplayer", "routes/multiplayer.tsx"),
+  route("profile", "routes/profile.tsx"),
   route("options", "routes/options.tsx"),
 ] satisfies RouteConfig;
