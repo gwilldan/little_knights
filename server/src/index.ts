@@ -6,9 +6,9 @@ import { registerGameSocketRoutes } from "./routes/ws/game.ws";
 import { connectRedis } from "./services/redis.service";
 import { pg } from "./db/db.init";
 import { healthRouter, singleRouter, userRouter } from "./routes/http";
+import cors from "cors";
 
 const PORT = Number(process.env.PORT || 8080);
-const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
 
 async function bootstrap(): Promise<void> {
   await connectRedis();
@@ -16,20 +16,29 @@ async function bootstrap(): Promise<void> {
 
   const app = express();
 
+
   // middlewares
-  app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", CORS_ORIGIN);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // app.use((req, res, next) => {
+  //   res.setHeader("Access-Control-Allow-Origin", CORS_ORIGIN);
+  //   res.setHeader("Access-Control-Allow-Credentials", "true");
+  //   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  //   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === "OPTIONS") {
-      res.sendStatus(204);
-      return;
-    }
+  //   if (req.method === "OPTIONS") {
+  //     res.sendStatus(204);
+  //     return;
+  //   }
 
-    next();
-  });
+  //   next();
+  // });
+  
+  // middlewares
+  app.use(cors({
+    origin: ["https://chess.gwilldan.xyz", "http://localhost:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  }));
   app.use(express.json());
 
   // routers
