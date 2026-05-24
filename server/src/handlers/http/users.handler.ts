@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { usersTable } from "../../db/schema";
 import { db } from "../../db/db.init";
 import { eq } from "drizzle-orm";
-import { userInsert } from "../../utils/zod.config";
+import { UserInsert, userInsert } from "../../utils/zod.config";
 import {
   AUTH_COOKIE,
   AUTH_COOKIE_MAX_AGE_MS,
@@ -30,27 +30,12 @@ export const getUser = async (req: Request, res: Response) => {
   }
 };
 
-export const createUser = async (req: Request, res: Response) => {
-  try {
-    const balance = 0n;
-    const user = userInsert.parse({ ...req.body, balance });
-    await db.insert(usersTable).values(user);
-    res.sendStatus(201);
-  } catch (error: any) {
-    if (error?.cause?.code == 23505) {
-      res.status(409).json({ message: `${req.body.wallet} already exist` });
-      return;
-    }
-    console.log("full error", error);
-    console.log("error options", Object.keys(error));
-
-    const message = error instanceof Error ? error.message : error;
-    res.status(404).json({ message });
-  }
-};
 
 export const signInUser = async (req: Request, res: Response) => {
   try {
+
+    let _user: UserInsert;
+
     const reqId = (req.query.id ?? req.body?.id) as string | undefined;
     if (!reqId?.trim()) {
       res.status(400).json({ message: "User id is required" });
@@ -62,12 +47,17 @@ export const signInUser = async (req: Request, res: Response) => {
       .from(usersTable)
       .where(eq(usersTable.id, reqId.trim()))
       .limit(1);
+
+    // create user if not exists, otherwise use existing user
     if (!user) {
-      res.status(404).json({ message: "user not found" });
-      return;
+      const newUser = userInsert.parse({ ...req.body });
+      await db.insert(usersTable).values(newUser);
+      _user = newUser;
+    } else {
+      _user = user;
     }
 
-    const token = signAuthToken(user.id);
+    const token = signAuthToken(_user.id);
     res.cookie(AUTH_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -77,9 +67,9 @@ export const signInUser = async (req: Request, res: Response) => {
     });
 
     res.json({
-      id: user.id,
-      name: user.name,
-      balance: user.balance.toString(),
+      id: _user.id,
+      name: _user.name,
+      balance: _user.balance.toString(),
     });
   } catch (error) {
     console.log("error from signInUser:", error);

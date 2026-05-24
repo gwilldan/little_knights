@@ -4,7 +4,7 @@ export const userInsert = z.object({
     id: z.string().nonempty().trim(),
     name: z.string().nonempty().trim(),
     balance: z.bigint().nonoptional(),
-    joined: z.date().optional()
+    joined: z.date().nullable()
 })
 
 export const transactionInsert = z.object({
