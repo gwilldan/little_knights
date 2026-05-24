@@ -175,10 +175,12 @@ function AppLoader() {
   return (
     <main className="lk-menu-screen main_background">
       <section className="lk-loader-panel">
-        <div className="lk-loader-knight-wrap" aria-hidden>
-          <span className="lk-loader-knight lk-loader-knight-back">♞</span>
-          <span className="lk-loader-knight lk-loader-knight-front">♞</span>
+
+        <div aria-hidden className="lk-start-loader">
+          <span className="lk-start-loader-piece">♞</span>
+          <span className="lk-start-loader-ring" />
         </div>
+      
         <h1 className="lk-loader-title">LittleKnights</h1>
         <p className="lk-loader-copy">Preparing your board, wallet, and match services...</p>
       </section>
