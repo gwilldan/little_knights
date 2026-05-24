@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
+import { createPublicClient, erc20Abi, formatUnits, http } from "viem";
+import { celoSepolia } from "viem/chains";
 import CapturedTray from "~/components/chess/CapturedTray";
 import { loadSettings, saveSettings } from "~/utils/settings";
 import { signInUser } from "~/utils/auth";
+import { saveSingleGame } from "~/utils/game";
 import { getOrCreateUid } from "~/utils/user";
+import { useAppSession } from "~/utils/app-session";
 import type {
   ClientMessage,
   GameMode,
@@ -15,6 +19,7 @@ import type {
   PieceColor,
   ServerMessage
 } from "~/types/game";
+import { Wallet } from "lucide-react";
 
 type NetworkChessGameProps = {
   mode: GameMode;
@@ -44,6 +49,7 @@ function formatMs(ms: number) {
 
 export default function NetworkChessGame({ mode, roomId, opponentLabel }: NetworkChessGameProps) {
   const navigate = useNavigate();
+  const { walletAddress, createSingleGame } = useAppSession();
 
   const [isMounted, setIsMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshotMessage | null>(null);
@@ -63,6 +69,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
   const [readyToPlay, setReadyToPlay] = useState(false);
   const [startLoading, setStartLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<string>("--");
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -243,9 +250,80 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!isSingle || !walletAddress) {
+      setUsdcBalance("--");
+      return;
+    }
+
+    let active = true;
+
+    async function loadUsdcBalance() {
+      try {
+        const stablecoinAddress = import.meta.env.VITE_STABLECOIN_CONTRACT_ADDRESS;
+        const stablecoinDecimals = Number(import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6);
+        if (!stablecoinAddress) {
+          if (active) setUsdcBalance("--");
+          return;
+        }
+
+        const publicClient = createPublicClient({
+          chain: celoSepolia,
+          transport: http(import.meta.env.VITE_CELO_RPC_URL),
+        });
+
+        const balance = await publicClient.readContract({
+          address: stablecoinAddress,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [walletAddress as `0x${string}`],
+        });
+
+        if (!active) return;
+        setUsdcBalance(Number(formatUnits(balance, stablecoinDecimals)).toFixed(2));
+      } catch {
+        if (active) setUsdcBalance("--");
+      }
+    }
+
+    void loadUsdcBalance();
+    return () => {
+      active = false;
+    };
+  }, [isSingle, walletAddress]);
+
   async function handleStartPlay() {
     setStartLoading(true);
     setStartError(null);
+
+    if (isSingle) {
+      if (!walletAddress) {
+        setStartError("Wallet not connected.");
+        setStartLoading(false);
+        return;
+      }
+
+      try {
+        const { gameId, txHash } = await createSingleGame("1");
+        const saved = await saveSingleGame({
+          gameId,
+          txHash,
+          walletAddress,
+          betAmount: "1",
+          uid,
+        });
+
+        if (!saved) {
+          setStartError("Could not save game details to server.");
+          setStartLoading(false);
+          return;
+        }
+      } catch (error) {
+        setStartError(error instanceof Error ? error.message : "Could not create game.");
+        setStartLoading(false);
+        return;
+      }
+    }
 
     const signedIn = await signInUser(uid);
     if (!signedIn) {
@@ -493,6 +571,16 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
               >
                 {startLoading ? "Preparing..." : "Play"}
               </button>
+              {isSingle ? (
+                <div className="flex items-center justify-between">
+
+                  <p className="inline-flex items-center gap-2 ">
+                    <span className="text-[#b89260]"><Wallet /></span>
+                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
+                  </p>
+                  <p className="lk-start-wallet-line">${usdcBalance}</p>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

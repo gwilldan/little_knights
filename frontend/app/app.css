@@ -385,6 +385,14 @@
     @apply mt-4 w-full;
   }
 
+  .lk-start-wallet-block {
+    @apply mt-3 rounded-lg border border-[#4a3a10] bg-[#120d07] px-3 py-2;
+  }
+
+  .lk-start-wallet-line {
+    @apply m-0 text-[10px] normal-case tracking-normal text-[#b89260];
+  }
+
   @keyframes lkLoaderSpin {
     to {
       transform: rotate(360deg);
