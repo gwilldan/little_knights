@@ -1,6 +1,7 @@
 import { Outlet } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { AppSessionContext, makeGameId, type AppSessionState } from "./utils/app-session";
+import { AppSessionContext, type AppSessionState } from "./utils/app-session";
+import { createSingleGame as createSingleGameCall } from "./utils/contract-calls/singleGame";
 
 export default function App() {
   const [status, setStatus] = useState<AppSessionState["status"]>("loading");
@@ -66,15 +67,9 @@ export default function App() {
           throw new Error("Wallet not connected.");
         }
 
-        const gameId = makeGameId(gameCount);
+        const result = await createSingleGameCall({ walletAddress, betAmount });
         setGameCount((count) => count + 1);
-
-        // Placeholder for smart contract + server create call.
-        await new Promise((resolve) => setTimeout(resolve, 650));
-        const txHash = `0x${gameId.replaceAll("-", "").padEnd(64, "0").slice(0, 64)}`;
-        void betAmount;
-
-        return { gameId, txHash };
+        return result;
       },
     };
   }, [gameCount, healthOk, isMiniPay, lastError, status, walletAddress]);
