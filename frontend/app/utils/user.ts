@@ -1,16 +1,21 @@
+import { keccak256, toBytes } from "viem";
+
 const UID_KEY = "little-knights-uid";
 
-export function getOrCreateUid() {
+export function getOrCreateUid(walletAddress?: string | null) {
   if (typeof window === "undefined") {
     return "guest-server";
   }
 
-  const existing = window.localStorage.getItem(UID_KEY);
+  const walletKey = walletAddress?.toLowerCase() ?? "guest-wallet";
+  const scopedKey = `${UID_KEY}:${walletKey}`;
+
+  const existing = window.localStorage.getItem(scopedKey);
   if (existing) {
     return existing;
   }
 
-  const generated = `uid-${Math.random().toString(36).slice(2, 10)}`;
-  window.localStorage.setItem(UID_KEY, generated);
+  const generated = keccak256(toBytes(`${walletKey}-${Date.now()}`));
+  window.localStorage.setItem(scopedKey, generated);
   return generated;
 }

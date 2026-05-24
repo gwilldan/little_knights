@@ -32,9 +32,8 @@ export const getUser = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const id = crypto.randomUUID();
     const balance = 0n;
-    const user = userInsert.parse({ ...req.body, id, balance });
+    const user = userInsert.parse({ ...req.body, balance });
     await db.insert(usersTable).values(user);
     res.sendStatus(201);
   } catch (error: any) {
@@ -80,7 +79,6 @@ export const signInUser = async (req: Request, res: Response) => {
     res.json({
       id: user.id,
       name: user.name,
-      wallet: user.wallet,
       balance: user.balance.toString(),
     });
   } catch (error) {

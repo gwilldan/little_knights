@@ -1,4 +1,4 @@
-import NetworkChessGame from "~/components/networkChessGame";
+import MultiplayerChessGame from "~/components/multiplayerChessGame";
 import type { Route } from "./+types/multiplayer.room";
 
 export function meta({ params }: Route.MetaArgs) {
@@ -6,12 +6,5 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export default function MultiplayerRoomRoute({ params }: Route.ComponentProps) {
-  return (
-    <NetworkChessGame
-      mode="multiplayer"
-      opponentLabel="Opponent"
-      roomId={params.roomId}
-      title={`Multiplayer ${params.roomId}`}
-    />
-  );
+  return <MultiplayerChessGame roomId={params.roomId} title={`Multiplayer ${params.roomId}`} />;
 }

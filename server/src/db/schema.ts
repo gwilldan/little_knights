@@ -2,8 +2,7 @@ import { boolean } from "drizzle-orm/pg-core";
 import { bigint, text, timestamp, pgTable } from "drizzle-orm/pg-core"
 
 export const usersTable = pgTable("users", {
-    id: text().notNull().primaryKey(),
-    wallet: text().notNull().unique(),
+    id: text().notNull().unique().primaryKey(),
     name: text().notNull(),
     joined: timestamp({ mode: "date", withTimezone: true }).defaultNow(),
     balance: bigint({ mode: "bigint" }).notNull()

@@ -66,7 +66,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
     await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
   }
 
-  const gameId = keccak256(toBytes(`lk-game-single-${Date.now()}`));
+  const gameId = keccak256(toBytes(`${walletAddress}-${Date.now()}`));
 
   const txHash = await walletClient.writeContract({
     address: escrowContractAddress,

@@ -1,4 +1,7 @@
 import { Chess } from "chess.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/db.init";
+import { gamesTable } from "../../db/schema";
 import type { GameMode, InboundMessage, MoveMessage, SocketClient } from "../../types/game";
 import type { ManagedWebSocket } from "../../types/ws";
 import { selectBestMove } from "../../services/chessEngine.service";
@@ -20,6 +23,13 @@ type HandlerDeps = {
 };
 
 const roomClients = new Map<string, Map<string, SocketClient>>();
+
+async function resolveGameRecord(roomId: string): Promise<void> {
+  await db
+    .update(gamesTable)
+    .set({ stop_time: new Date() })
+    .where(eq(gamesTable.id, roomId));
+}
 
 function getClients(roomId: string): Map<string, SocketClient> {
   const existing = roomClients.get(roomId);
@@ -130,6 +140,7 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 
   let room = applyClockTick(loaded);
   if (room.winner) {
+    await resolveGameRecord(roomId);
     await saveRoom(room);
     await broadcastRoom(roomId);
     sendJson(ws, { type: "error", message: "Game is over." });
@@ -171,6 +182,7 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 
     room = applyClockTick(latest);
     if (room.winner) {
+      await resolveGameRecord(roomId);
       await saveRoom(room);
       await broadcastRoom(roomId);
       return;
@@ -204,6 +216,9 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 
   await saveRoom(room);
   await broadcastRoom(roomId);
+  if (room.winner) {
+    await resolveGameRecord(roomId);
+  }
 }
 
 async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string): Promise<void> {

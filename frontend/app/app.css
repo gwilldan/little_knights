@@ -323,6 +323,10 @@
     @apply absolute inset-0 z-30 grid place-items-center bg-black/60 p-4;
   }
 
+  .lk-modal-backdrop-fixed {
+    @apply fixed;
+  }
+
   .lk-modal {
     @apply w-full max-w-[300px] rounded-2xl border p-5 text-center;
   }

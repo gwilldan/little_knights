@@ -5,7 +5,7 @@ import { WebSocketServer } from "ws";
 import { registerGameSocketRoutes } from "./routes/ws/game.ws";
 import { connectRedis } from "./services/redis.service";
 import { pg } from "./db/db.init";
-import { healthRouter, userRouter } from "./routes/http";
+import { healthRouter, singleRouter, userRouter } from "./routes/http";
 
 const PORT = Number(process.env.PORT || 8080);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
@@ -35,6 +35,7 @@ async function bootstrap(): Promise<void> {
   // routers
   app.use(userRouter);
   app.use(healthRouter);
+  app.use(singleRouter);
 
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });

@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
-import { createPublicClient, erc20Abi, formatUnits, http } from "viem";
-import { celoSepolia } from "viem/chains";
 import CapturedTray from "~/components/chess/CapturedTray";
 import { loadSettings, saveSettings } from "~/utils/settings";
-import { signInUser } from "~/utils/auth";
-import { saveSingleGame } from "~/utils/game";
 import { getOrCreateUid } from "~/utils/user";
-import { useAppSession } from "~/utils/app-session";
 import type {
   ClientMessage,
   GameMode,
@@ -19,13 +14,14 @@ import type {
   PieceColor,
   ServerMessage
 } from "~/types/game";
-import { Wallet } from "lucide-react";
 
 type NetworkChessGameProps = {
   mode: GameMode;
   roomId: string;
   title: string;
   opponentLabel: string;
+  uid?: string;
+  enabled?: boolean;
 };
 
 type ConnectionState = "connecting" | "connected" | "disconnected";
@@ -47,9 +43,14 @@ function formatMs(ms: number) {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-export default function NetworkChessGame({ mode, roomId, opponentLabel }: NetworkChessGameProps) {
+export default function NetworkChessGame({
+  mode,
+  roomId,
+  opponentLabel,
+  uid: uidProp,
+  enabled = true
+}: NetworkChessGameProps) {
   const navigate = useNavigate();
-  const { walletAddress, createSingleGame } = useAppSession();
 
   const [isMounted, setIsMounted] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshotMessage | null>(null);
@@ -64,19 +65,13 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
   const [flipped, setFlipped] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [reconnectNonce, setReconnectNonce] = useState(0);
-  const isSingle = mode === "single";
-  const [showStartModal, setShowStartModal] = useState(isSingle);
-  const [readyToPlay, setReadyToPlay] = useState(false);
-  const [startLoading, setStartLoading] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
-  const [usdcBalance, setUsdcBalance] = useState<string>("--");
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const lastFenRef = useRef<string | null>(null);
 
   const wsUrl = loadSettings().wsUrl;
-  const uid = useMemo(() => getOrCreateUid(), []);
+  const uid = useMemo(() => uidProp ?? getOrCreateUid(), [uidProp]);
 
   function playTone(frequency: number, durationMs: number) {
     if (!soundEnabled || typeof window === "undefined") {
@@ -230,115 +225,12 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
   }, []);
 
   useEffect(() => {
-    if (!isMounted || isSingle) {
-      return;
-    }
-
-    signInUser(uid).then((signedIn) => {
-      if (!signedIn) {
-        setStatus("Sign in failed");
-        setConnectionState("disconnected");
-        return;
-      }
-
-      setReadyToPlay(true);
-    });
-  }, [isMounted, isSingle, uid]);
-
-  useEffect(() => {
     const timer = setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    if (!isSingle || !walletAddress) {
-      setUsdcBalance("--");
-      return;
-    }
-
-    let active = true;
-
-    async function loadUsdcBalance() {
-      try {
-        const stablecoinAddress = import.meta.env.VITE_STABLECOIN_CONTRACT_ADDRESS;
-        const stablecoinDecimals = Number(import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6);
-        if (!stablecoinAddress) {
-          if (active) setUsdcBalance("--");
-          return;
-        }
-
-        const publicClient = createPublicClient({
-          chain: celoSepolia,
-          transport: http(import.meta.env.VITE_CELO_RPC_URL),
-        });
-
-        const balance = await publicClient.readContract({
-          address: stablecoinAddress,
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [walletAddress as `0x${string}`],
-        });
-
-        if (!active) return;
-        setUsdcBalance(Number(formatUnits(balance, stablecoinDecimals)).toFixed(2));
-      } catch {
-        if (active) setUsdcBalance("--");
-      }
-    }
-
-    void loadUsdcBalance();
-    return () => {
-      active = false;
-    };
-  }, [isSingle, walletAddress]);
-
-  async function handleStartPlay() {
-    setStartLoading(true);
-    setStartError(null);
-
-    if (isSingle) {
-      if (!walletAddress) {
-        setStartError("Wallet not connected.");
-        setStartLoading(false);
-        return;
-      }
-
-      try {
-        const { gameId, txHash } = await createSingleGame("1");
-        const saved = await saveSingleGame({
-          gameId,
-          txHash,
-          walletAddress,
-          betAmount: "1",
-          uid,
-        });
-
-        if (!saved) {
-          setStartError("Could not save game details to server.");
-          setStartLoading(false);
-          return;
-        }
-      } catch (error) {
-        setStartError(error instanceof Error ? error.message : "Could not create game.");
-        setStartLoading(false);
-        return;
-      }
-    }
-
-    const signedIn = await signInUser(uid);
-    if (!signedIn) {
-      setStartError("Sign in failed. Register your player before competing.");
-      setStartLoading(false);
-      return;
-    }
-
-    setReadyToPlay(true);
-    setShowStartModal(false);
-    setStartLoading(false);
-  }
-
-  useEffect(() => {
-    if (!isMounted || !readyToPlay) {
+    if (!isMounted || !enabled) {
       return;
     }
 
@@ -402,7 +294,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
       socket.close();
       socketRef.current = null;
     };
-  }, [isMounted, readyToPlay, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
+  }, [enabled, isMounted, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
 
   const whiteBase = snapshot?.whiteMs ?? 60_000;
   const blackBase = snapshot?.blackMs ?? 60_000;
@@ -447,7 +339,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
 
   const handleCloseGame = () => {
     socketRef?.current?.close();
-    navigate("/")
+    navigate("/");
   };
 
   return (
@@ -491,26 +383,10 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
           <div className={`lk-clock ${myTurn ? "lk-clock-active" : ""}`}>{formatMs(myMs)}</div>
         </section>
 
-        {/* AI MAKE SURE NOT TO UNCOMMENT THIS */}
-        {/* <div className="lk-actions-row">
-          <button className="lk-action-btn" type="button">½ Draw</button>
-          <button className="lk-action-btn lk-action-danger" type="button">Resign</button>
-          <button className="lk-action-btn" onClick={() => setFlipped((prev) => !prev)} type="button">⇅ Flip</button>
-        </div> */}
-
         <div className="lk-status-row">
           <span className={`lk-status-dot ${statusClass}`} />
           <p className="lk-room-state">{status}</p>
         </div>
-
-        {/* AI MAKE SURE NOT TO UNCOMMENT THIS */}
-        {/* <footer className="lk-bottom-nav">
-          <span className="lk-bottom-active-line" />
-          <span className="lk-nav-item lk-nav-item-active">♟ GAME</span>
-          <span className="lk-nav-item">⚑ BRACKET</span>
-          <span className="lk-nav-item">◎ WALLET</span>
-          <span className="lk-nav-item">☰ MENU</span>
-        </footer> */}
 
         {snapshot?.isGameOver ? (
           <div className="lk-modal-backdrop">
@@ -537,55 +413,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
           </div>
         ) : null}
 
-        {showStartModal ? (
-          <div className="lk-modal-backdrop">
-            <div className="lk-modal lk-modal-dark lk-start-modal">
-              <button
-                aria-label="Exit to home"
-                className="lk-modal-close"
-                onClick={() => navigate("/")}
-                type="button"
-              >
-                ×
-              </button>
-
-              <div aria-hidden className="lk-start-loader">
-                <span className="lk-start-loader-piece">♞</span>
-                <span className="lk-start-loader-ring" />
-              </div>
-
-              <p className="lk-start-kicker">Timed Competition</p>
-              <h2>Little Knights</h2>
-              <p className="lk-start-copy">
-                Entry costs $1. Win against the bot and take home $2 (100% profit). If your clock hits zero, you lose.
-              </p>
-              <p className="lk-start-terms">By proceeding, you agree to the competition terms.</p>
-
-              {startError ? <p className="lk-start-error">{startError}</p> : null}
-
-              <button
-                className="lk-action-btn lk-action-primary lk-start-play"
-                disabled={startLoading}
-                onClick={handleStartPlay}
-                type="button"
-              >
-                {startLoading ? "Preparing..." : "Play"}
-              </button>
-              {isSingle ? (
-                <div className="flex items-center justify-between">
-
-                  <p className="inline-flex items-center gap-2 ">
-                    <span className="text-[#b89260]"><Wallet /></span>
-                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
-                  </p>
-                  <p className="lk-start-wallet-line">${usdcBalance}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {connectionState === "disconnected" && readyToPlay ? (
+        {connectionState === "disconnected" ? (
           <div className="lk-modal-backdrop">
             <div className="lk-modal lk-modal-dark">
               <h2>Disconnected</h2>
@@ -596,6 +424,7 @@ export default function NetworkChessGame({ mode, roomId, opponentLabel }: Networ
             </div>
           </div>
         ) : null}
+
       </div>
     </section>
   );
