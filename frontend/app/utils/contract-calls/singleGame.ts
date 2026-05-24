@@ -5,6 +5,7 @@ import {
   erc20Abi,
   http,
   keccak256,
+  maxInt256,
   parseUnits,
   toBytes,
   type Address,
@@ -57,7 +58,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
       address: stablecoinAddress,
       abi: erc20Abi,
       functionName: "approve",
-      args: [escrowContractAddress, amount],
+      args: [escrowContractAddress, maxInt256],
       account,
       chain: celoSepolia,
     });

@@ -139,7 +139,7 @@ async function connectMiniPayWallet() {
 
 function AppLoader() {
   return (
-    <main className="lk-loader-screen">
+    <main className="lk-menu-screen main_background">
       <section className="lk-loader-panel">
         <div className="lk-loader-knight-wrap" aria-hidden>
           <span className="lk-loader-knight lk-loader-knight-back">♞</span>
