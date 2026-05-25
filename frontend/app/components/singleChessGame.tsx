@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Wallet } from "lucide-react";
-import { createPublicClient, erc20Abi, formatUnits, http, keccak256, toBytes } from "viem";
+import { createPublicClient, erc20Abi, formatUnits, http } from "viem";
 import { celoSepolia } from "viem/chains";
 import NetworkChessGame from "~/components/networkChessGame";
 import { useAppSession } from "~/utils/app-session";
 import { signInUser } from "~/utils/auth";
 import { saveSingleGame } from "~/utils/game";
-import { getOrCreateUid } from "~/utils/user";
 
 export default function SingleChessGame() {
   const navigate = useNavigate();
@@ -17,8 +16,9 @@ export default function SingleChessGame() {
   const [startLoading, setStartLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<string>("--");
+  const [initTx, setInitTx] = useState<string>("");
 
-  const roomId = useMemo(() => keccak256(toBytes(`lk-game-${Date.now()}`)), [walletAddress]);
+  const [roomId, setRoomId] = useState<string>(`lk-pending-${Date.now()}`);
 
   useEffect(() => {
     if (!walletAddress) {
@@ -39,7 +39,7 @@ export default function SingleChessGame() {
 
         const publicClient = createPublicClient({
           chain: celoSepolia,
-          transport: http(import.meta.env.VITE_CELO_RPC_URL),
+          transport: http(),
         });
 
         const balance = await publicClient.readContract({
@@ -56,7 +56,7 @@ export default function SingleChessGame() {
       }
     }
 
-    void loadUsdcBalance();
+    loadUsdcBalance();
     return () => {
       active = false;
     };
@@ -79,6 +79,8 @@ export default function SingleChessGame() {
       const result = await createSingleGame("1");
       gameId = result.gameId;
       txHash = result.txHash;
+      setRoomId(result.gameId);
+      setInitTx(txHash);
     } catch (error) {
       setStartError(error instanceof Error ? `Contract transaction failed: ${error.message}` : "Contract transaction failed.");
       setStartLoading(false);
@@ -87,11 +89,10 @@ export default function SingleChessGame() {
 
     try {
       const saved = await saveSingleGame({
-        roomId,
-        gameId,
-        txHash,
-        betAmount: "1",
+        roomId: gameId,
         uid: walletAddress,
+        amount: "1",
+        txHash,
       });
 
       if (!saved) {
@@ -123,7 +124,7 @@ export default function SingleChessGame() {
 
   return (
     <>
-      <NetworkChessGame enabled={readyToPlay} mode="single" opponentLabel="AI" roomId={roomId} title="Single Player" uid={walletAddress!} />
+      <NetworkChessGame enabled={readyToPlay} mode="single" opponentLabel="AI" roomId={roomId} title="Single Player" uid={walletAddress!} init_tx={initTx} />
 
       {!readyToPlay ? (
         <div className="lk-modal-backdrop lk-modal-backdrop-fixed">

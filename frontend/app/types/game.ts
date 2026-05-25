@@ -38,7 +38,14 @@ export type ErrorMessage = {
   message: string;
 };
 
-export type ServerMessage = GameSnapshotMessage | JoinedMessage | ErrorMessage;
+export type GameEndedMessage = {
+  type: "game_end";
+  roomId: string;
+  winner: PieceColor | null;
+  endReason: GameEndReason;
+};
+
+export type ServerMessage = GameSnapshotMessage | JoinedMessage | ErrorMessage | GameEndedMessage;
 
 export type JoinMessage = {
   type: "join";
@@ -60,6 +67,7 @@ export type NewGameMessage = {
   type: "new_game";
   uid: string;
   roomId: string;
+  init_tx: string;
 };
 
 export type ClientMessage = JoinMessage | MoveMessage | NewGameMessage;

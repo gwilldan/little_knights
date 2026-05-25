@@ -6,6 +6,11 @@ CREATE TABLE "games" (
 	"is_timed" boolean NOT NULL,
 	"start_time" timestamp with time zone,
 	"stop_time" timestamp with time zone,
+	"bet_amount" bigint NOT NULL,
+	"game_status" text DEFAULT 'pending' NOT NULL,
+	"init_tx" text NOT NULL,
+	"start_tx" text,
+	"resolve_tx" text,
 	CONSTRAINT "games_id_unique" UNIQUE("id")
 );
 --> statement-breakpoint

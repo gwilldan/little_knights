@@ -24,6 +24,8 @@ import {
 } from "../../services/room.service";
 import { buildSnapshot } from "../../utils/gameSnapshot";
 import { sendJson } from "../../utils/socket";
+import { writeResolve } from "../../utils/onchain-helpers/contract.helpers";
+import { walletClient } from "../../utils/onchain-helpers/viem.init";
 
 type HandlerDeps = {
   normalizeMode: (value: string) => GameMode;
@@ -35,15 +37,19 @@ const roomTurnTimeouts = new Map<string, NodeJS.Timeout>();
 async function resolveGameRecord(roomId: string, winner: PieceColor | null): Promise<void> {
   await db
     .update(gamesTable)
-    .set({ stop_time: new Date() })
+    .set({ stop_time: new Date()})
     .where(eq(gamesTable.id, roomId));
   console.log(`Resolved game record ${roomId} with winner ${winner ?? "draw"}`);
 }
 
-async function resolveGameOnContract(roomId: string, winner: PieceColor | null): Promise<void> {
-  // Placeholder hook for contract resolution integration.
-  // This is called on every terminal game state with the resolved winner.
-  console.log(`Resolve on contract requested for ${roomId} winner=${winner ?? "draw"}`);
+async function resolveGameOnContract(room: GameRoomState): Promise<void> {
+
+  const winnerAddress = room.winner === "w" ? room.player1_id : room.winner === "b" ? room.player2_id : "0x0000000000000000000000000000000000000000";
+
+  console.log("winnerAddress to resolve on contract:", winnerAddress, room.winner, room.player1_id, room.player2_id);
+
+  const tx = await writeResolve(room.id as `0x${string}`, winnerAddress as `0x{string}`);
+  console.log(`Resolve on contract requested for ${room.id} winner=${room.winner} txHash=${tx}`);
 }
 
 async function isSingleGameOpen(roomId: string): Promise<boolean> {
@@ -94,10 +100,13 @@ function emitGameEnded(room: GameRoomState): void {
 }
 
 async function settleFinishedGame(roomId: string, room: GameRoomState): Promise<void> {
-  await resolveGameOnContract(roomId, room.winner);
-  await saveRoom(room);
-  await resolveGameRecord(roomId, room.winner);
-  await broadcastRoom(roomId);
+  console.log("State of the room before settling:", room);
+  await Promise.all([
+    resolveGameOnContract(room),
+    saveRoom(room),
+    resolveGameRecord(roomId, room.winner),
+    broadcastRoom(roomId)
+  ]);
   emitGameEnded(room);
   clearRoomTimeout(roomId);
 }
@@ -172,7 +181,7 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
     return;
   }
 
-  const { roomId, uid, mode } = message;
+  const { roomId, uid, mode, player2_id } = message;
 
   if (!requireAuth(ws, uid)) {
     return;
@@ -192,7 +201,7 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
     }
   }
 
-  const loaded = await getOrCreateRoom(roomId, normalizedMode);
+  const loaded = await getOrCreateRoom(roomId, normalizedMode, uid, player2_id);
   const room = applyClockTick(loaded);
 
   if (room.mode !== normalizedMode) {
@@ -313,8 +322,14 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
   scheduleRoomTimeout(room);
 }
 
-async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string): Promise<void> {
+async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string, init_tx: string): Promise<void> {
   if (!requireAuth(ws, uid)) {
+    return;
+  }
+
+  const  txReceipt = await walletClient.getTransactionReceipt({ hash: init_tx as `0x${string}` })
+  if (!txReceipt || txReceipt.status !== "success") {
+    sendJson(ws, { type: "error", message: "Invalid transaction." });
     return;
   }
 
@@ -358,7 +373,7 @@ export async function onSocketMessage(ws: ManagedWebSocket, raw: unknown, deps: 
   }
 
   if (parsed.type === "new_game") {
-    await handleNewGame(ws, parsed.roomId, parsed.uid);
+    await handleNewGame(ws, parsed.roomId, parsed.uid, parsed.init_tx);
     return;
   }
 

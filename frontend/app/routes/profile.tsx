@@ -13,23 +13,23 @@ export default function ProfileRoute() {
   const { walletAddress, isMiniPay, healthOk, gameCount } = useAppSession();
 
   return (
-    <main className="lk-menu-screen main_background">
+    <main className="lk-app-background flex min-h-dvh items-center justify-center p-6">
       <section className="lk-single-panel">
         <h1 className="lk-single-title">Profile</h1>
         <p className="lk-single-sub">Your player information and quick access settings.</p>
 
-        <section className="lk-profile-card" aria-label="Profile details">
-          <p className="lk-profile-line">
-            Wallet: <span>{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}</span>
+        <section className="mt-5 rounded-2xl border border-[#e4c189]/35 bg-[#1e120c]/80 p-4" aria-label="Profile details">
+          <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
+            Wallet: <span className="font-semibold text-[#f4dfbc]">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}</span>
           </p>
-          <p className="lk-profile-line">
-            MiniPay: <span>{isMiniPay ? "Detected" : "Not detected"}</span>
+          <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
+            MiniPay: <span className="font-semibold text-[#f4dfbc]">{isMiniPay ? "Detected" : "Not detected"}</span>
           </p>
-          <p className="lk-profile-line">
-            Server: <span>{healthOk ? "Connected" : "Unavailable"}</span>
+          <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
+            Server: <span className="font-semibold text-[#f4dfbc]">{healthOk ? "Connected" : "Unavailable"}</span>
           </p>
-          <p className="lk-profile-line">
-            Games created: <span>{gameCount}</span>
+          <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
+            Games created: <span className="font-semibold text-[#f4dfbc]">{gameCount}</span>
           </p>
         </section>
 

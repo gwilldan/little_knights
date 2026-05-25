@@ -15,7 +15,12 @@ export const gamesTable = pgTable("games", {
     is_multiplayer: boolean().notNull(),
     is_timed: boolean().notNull(),
     start_time: timestamp({ mode: "date", withTimezone: true }),
-    stop_time: timestamp({ mode: "date", withTimezone: true })
+    stop_time: timestamp({ mode: "date", withTimezone: true }),
+    bet_amount: bigint({ mode: "bigint" }).notNull(),
+    game_status: text().notNull().default("pending"),
+    init_tx: text().notNull(),
+    start_tx: text(),
+    resolve_tx: text(),
 })
 
 export const transactionsTable = pgTable("transactions", {

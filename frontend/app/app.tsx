@@ -100,7 +100,7 @@ export default function App() {
 
   if (isDesktopWidth) {
     return (
-      <main className="lk-loader-screen">
+      <main className="lk-app-background lk-loader-screen">
         <section className="lk-modal lk-modal-dark">
           <h2>No desktop</h2>
           <p>Open in &quot;No desktop Minipay only&quot;</p>
@@ -173,7 +173,7 @@ async function getNativeBalance(
 
 function AppLoader() {
   return (
-    <main className="lk-menu-screen main_background">
+    <main className="lk-app-background lk-loader-screen">
       <section className="lk-loader-panel">
 
         <div aria-hidden className="lk-start-loader">

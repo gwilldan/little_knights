@@ -25,6 +25,8 @@ export type GameRoomState = {
   activeTurnStartedAt: number | null;
   winner: PieceColor | null;
   endReason: GameEndReason | null;
+  player1_id: string;
+  player2_id: string | null;
 };
 
 export type JoinMessage = {
@@ -32,6 +34,8 @@ export type JoinMessage = {
   roomId: string;
   mode: GameMode;
   uid: string;
+  player1_id: string;
+  player2_id: string | null;
 };
 
 export type MoveMessage = {
@@ -47,6 +51,10 @@ export type NewGameMessage = {
   type: "new_game";
   roomId: string;
   uid: string;
+  mode: GameMode;
+  init_tx: string;
+  player1_id: string;
+  player2_id: string | null;
 };
 
 export type InboundMessage = JoinMessage | MoveMessage | NewGameMessage;

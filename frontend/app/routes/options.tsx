@@ -16,9 +16,17 @@ export default function OptionsRoute() {
   }
 
   return (
-    <main className="lk-menu-screen">
-      <div className="lk-menu-panel">
-        <h1 className="lk-menu-title">Options</h1>
+    <main className="lk-app-background flex min-h-dvh items-center justify-center p-6">
+      <div className="mx-auto w-[min(92vw,430px)]">
+        <h1
+          className="mb-5 mt-0 uppercase font-extrabold tracking-[0.04em] text-[#ebcc8b]"
+          style={{
+            fontSize: "clamp(3rem, 10vw, 6rem)",
+            textShadow: "0 2px 0 #8f5f2a, 0 8px 20px rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          Options
+        </h1>
 
         <section className="lk-options-list">
           <label className="lk-option-row">

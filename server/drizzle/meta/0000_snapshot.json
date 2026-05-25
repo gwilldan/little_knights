@@ -1,5 +1,5 @@
 {
-  "id": "846ef2e2-0be7-45a3-8447-8db305821a0f",
+  "id": "622f7f56-d5a3-499e-93b9-babf978f8424",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -47,6 +47,37 @@
         "stop_time": {
           "name": "stop_time",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bet_amount": {
+          "name": "bet_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game_status": {
+          "name": "game_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "init_tx": {
+          "name": "init_tx",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_tx": {
+          "name": "start_tx",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolve_tx": {
+          "name": "resolve_tx",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }

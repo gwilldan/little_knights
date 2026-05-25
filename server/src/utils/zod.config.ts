@@ -18,11 +18,16 @@ export const transactionInsert = z.object({
 export const gameInsert = z.object({
     id: z.string().nonempty().trim(),
     user1: z.string().nonempty().trim(),
+    user2: z.string().trim().optional(),
     is_multiplayer: z.boolean().nonoptional(),
     is_timed: z.boolean().nonoptional(),
-    user2: z.string().trim().optional(),
     start_time: z.date().optional(),
-    stop_time: z.date().optional()
+    stop_time: z.date().optional(),
+    bet_amount: z.bigint().nonoptional(),
+    game_status: z.enum(["pending", "active", "completed", "cancelled"]).nonoptional(),
+    init_tx: z.string().nonempty().trim(),
+    start_tx: z.string().trim().optional(),
+    resolve_tx: z.string().trim().optional()
 })
 
 export type UserInsert = z.infer<typeof userInsert>

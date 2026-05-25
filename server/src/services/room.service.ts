@@ -2,6 +2,8 @@ import { Chess } from "chess.js";
 import type { GameEndReason, GameMode, GameRoomState, PieceColor } from "../types/game";
 import { redis } from "./redis.service";
 
+const BOT_WALLET_ADDRESS = process.env.BOT_WALLET_ADDRESS as string;
+
 const ROOM_KEY_PREFIX = "lk:room:";
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const TURN_LIMIT_MS = 60_000;
@@ -28,7 +30,9 @@ function normalizeRoom(room: Partial<GameRoomState>): GameRoomState {
     blackMs: typeof room.blackMs === "number" ? room.blackMs : TURN_LIMIT_MS,
     activeTurnStartedAt: typeof room.activeTurnStartedAt === "number" ? room.activeTurnStartedAt : Date.now(),
     winner: room.winner ?? null,
-    endReason: room.endReason ?? null
+    endReason: room.endReason ?? null,
+    player1_id: room.player1_id!,
+    player2_id: room.player2_id ?? BOT_WALLET_ADDRESS
   };
 }
 
@@ -119,7 +123,8 @@ export async function getRoom(roomId: string): Promise<GameRoomState | null> {
   return normalized;
 }
 
-export async function getOrCreateRoom(roomId: string, mode: GameMode): Promise<GameRoomState> {
+export async function getOrCreateRoom(roomId: string, mode: GameMode, player1_id: string, player2_id: string | null): Promise<GameRoomState> {
+
   const existing = await getRoom(roomId);
   if (existing) {
     return existing;
@@ -134,8 +139,12 @@ export async function getOrCreateRoom(roomId: string, mode: GameMode): Promise<G
     blackMs: TURN_LIMIT_MS,
     activeTurnStartedAt: Date.now(),
     winner: null,
-    endReason: null
+    endReason: null,
+    player1_id: player1_id,
+    player2_id: player2_id ?? BOT_WALLET_ADDRESS
   };
+
+  console.log(`Created new room `, created);
 
   await redis.set(roomKey(roomId), JSON.stringify(created));
   return created;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
 import CapturedTray from "~/components/chess/CapturedTray";
@@ -7,6 +7,7 @@ import { loadSettings, saveSettings } from "~/utils/settings";
 import { getOrCreateUid } from "~/utils/user";
 import type {
   ClientMessage,
+  GameEndedMessage,
   GameMode,
   GameSnapshotMessage,
   JoinedMessage,
@@ -21,6 +22,7 @@ type NetworkChessGameProps = {
   title: string;
   opponentLabel: string;
   uid?: string;
+  init_tx: string;
   enabled?: boolean;
 };
 
@@ -48,7 +50,8 @@ export default function NetworkChessGame({
   roomId,
   opponentLabel,
   uid: uidProp,
-  enabled = true
+  enabled = true,   
+  init_tx
 }: NetworkChessGameProps) {
   const navigate = useNavigate();
 
@@ -65,6 +68,7 @@ export default function NetworkChessGame({
   const [flipped, setFlipped] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [reconnectNonce, setReconnectNonce] = useState(0);
+  const [gameEndMessage, setGameEndMessage] = useState<GameEndedMessage | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -154,7 +158,8 @@ export default function NetworkChessGame({
     return sendJson(socketRef.current, {
       type: "new_game",
       uid,
-      roomId
+      roomId,
+      init_tx: "",
     });
   }
 
@@ -279,6 +284,14 @@ export default function NetworkChessGame({
         lastFenRef.current = next.fen;
         setSnapshot(next);
         setDisplayFen(next.fen);
+        if (!next.isGameOver) {
+          setGameEndMessage(null);
+        }
+        return;
+      }
+
+      if (message.type === "game_end") {
+        setGameEndMessage(message as GameEndedMessage);
         return;
       }
 
@@ -311,13 +324,21 @@ export default function NetworkChessGame({
   const myCapturedColor = myColor === "w" ? "b" : "w";
   const oppCapturedColor = myColor === "w" ? "w" : "b";
 
-  const resultLabel = snapshot?.winner
-    ? snapshot.winner === myColor
+  const winner = gameEndMessage?.winner ?? snapshot?.winner ?? null;
+  const endReasonValue = gameEndMessage?.endReason ?? snapshot?.endReason ?? "draw";
+
+  const resultLabel = winner
+    ? winner === myColor
       ? "You Win"
       : `${opponentLabel} Wins`
     : "Draw";
 
-  const endReason = snapshot?.endReason === "timeout" ? "Time Up" : snapshot?.endReason === "checkmate" ? "Checkmate" : "Draw";
+  const endReason =
+    endReasonValue === "timeout"
+      ? "Time Up"
+      : endReasonValue === "checkmate"
+        ? "Checkmate"
+        : "Draw";
 
   const options: ChessboardOptions = {
     id: `${mode}-${roomId}`,
@@ -340,6 +361,17 @@ export default function NetworkChessGame({
   const handleCloseGame = () => {
     socketRef?.current?.close();
     navigate("/");
+  };
+
+  const handlePlayAgain = () => {
+    if (mode === "single") {
+      socketRef?.current?.close();
+      navigate(`/single/play`);
+      return;
+    }
+
+    sendNewGame();
+    setGameEndMessage(null);
   };
 
   return (
@@ -393,7 +425,7 @@ export default function NetworkChessGame({
             <div className="lk-modal lk-modal-dark">
               <h2>{resultLabel}</h2>
               <p>{endReason}</p>
-              <button className="lk-action-btn lk-action-primary" onClick={sendNewGame} type="button">
+              <button className="lk-action-btn lk-action-primary" onClick={handlePlayAgain} type="button">
                 Play Again
               </button>
             </div>
@@ -418,9 +450,9 @@ export default function NetworkChessGame({
             <div className="lk-modal lk-modal-dark">
               <h2>Disconnected</h2>
               <p>Disconnected from server</p>
-              <button className="lk-action-btn lk-action-primary" onClick={() => setReconnectNonce((v) => v + 1)} type="button">
+              <Link className="lk-action-btn lk-action-primary" to={"/single/play"} >
                 Try Again
-              </button>
+              </Link>
             </div>
           </div>
         ) : null}
