@@ -77,7 +77,11 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
     chain: celoSepolia,
   });
 
-  await publicClient.waitForTransactionReceipt({ hash: txHash });
+  const txReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+  if(!txReceipt || txReceipt.status !== "success") {
+    throw new Error("Failed to create game on-chain.");
+  } 
 
   return { gameId, txHash };
 }

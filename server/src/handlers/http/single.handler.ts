@@ -4,8 +4,6 @@ import { gamesTable } from "../../db/schema";
 import {gameInsert} from "../../utils/zod.config";
 import { parseUnits } from "viem";
 
-const botWallet = process.env.BOT_WALLET_ADDRESS as string;
-
 export const saveSingleGame = async (req: Request, res: Response) => {
   try {
     const { roomId, uid, amount, txHash } = req.body as {
@@ -23,7 +21,6 @@ export const saveSingleGame = async (req: Request, res: Response) => {
     const singleGameData = gameInsert.parse({
       id: roomId,
       user1: uid,
-      user2: botWallet,
       is_multiplayer: false,
       is_timed: true,
       start_time: new Date(),

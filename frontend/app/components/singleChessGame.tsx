@@ -8,6 +8,8 @@ import { useAppSession } from "~/utils/app-session";
 import { signInUser } from "~/utils/auth";
 import { saveSingleGame } from "~/utils/game";
 
+const BET_AMOUNT = import.meta.env.VITE_BET_AMOUNT!;
+
 export default function SingleChessGame() {
   const navigate = useNavigate();
   const { walletAddress, createSingleGame } = useAppSession();
@@ -72,11 +74,17 @@ export default function SingleChessGame() {
       return;
     }
 
+    if(usdcBalance < BET_AMOUNT) {
+      setStartError("Insufficient USDC balance. Refill your wallet to play.");
+      setStartLoading(false);
+      return;
+    }
+
     let gameId = "";
     let txHash = "";
 
     try {
-      const result = await createSingleGame("1");
+      const result = await createSingleGame(BET_AMOUNT);
       gameId = result.gameId;
       txHash = result.txHash;
       setRoomId(result.gameId);
@@ -91,7 +99,7 @@ export default function SingleChessGame() {
       const saved = await saveSingleGame({
         roomId: gameId,
         uid: walletAddress,
-        amount: "1",
+        amount: BET_AMOUNT,
         txHash,
       });
 
@@ -146,11 +154,11 @@ export default function SingleChessGame() {
             <p className="lk-start-kicker">Timed Competition</p>
             <h2>Little Knights</h2>
             <p className="lk-start-copy">
-              Entry costs $1. Win against the bot and take home $2 (100% profit). If your clock hits zero, you lose.
+              Entry costs ${BET_AMOUNT}. Win against the bot and take home $2 (100% profit). If your clock hits zero, you lose.
             </p>
             <p className="lk-start-terms">By proceeding, you agree to the competition terms.</p>
 
-            {startError ? <p className="lk-start-error">{startError}</p> : null}
+            {startError ? <p className="bg-red-200/80 border border-red-500 text-red-700 p-2">{startError}</p> : null}
 
             <button
               className="lk-action-btn lk-action-primary lk-start-play"
@@ -161,12 +169,12 @@ export default function SingleChessGame() {
               {startLoading ? "Preparing..." : "Play"}
             </button>
 
-            <div className="lk-start-wallet-block">
+            <div className="flex items-center justify-between">
               <p className="lk-start-wallet-line flex items-center gap-1">
                 <Wallet size={14} />
                 {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
               </p>
-              <p className="lk-start-wallet-line">USDC Balance: {usdcBalance}</p>
+              <p className="lk-start-wallet-line">$ {usdcBalance}</p>
             </div>
           </div>
         </div>

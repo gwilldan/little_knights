@@ -365,8 +365,14 @@ export default function NetworkChessGame({
 
   const handlePlayAgain = () => {
     if (mode === "single") {
-      socketRef?.current?.close();
-      navigate(`/single/play`);
+      try {
+        console.log("Navigating to /single/play for rematch");
+        socketRef?.current?.close();
+        navigate(`/single/play`);
+      } catch (error) {
+        console.log("error:", error)
+      }
+
       return;
     }
 

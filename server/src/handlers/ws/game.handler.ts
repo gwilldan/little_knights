@@ -34,10 +34,11 @@ type HandlerDeps = {
 const roomClients = new Map<string, Map<string, SocketClient>>();
 const roomTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
+// update this to save winner while updating records!
 async function resolveGameRecord(roomId: string, winner: PieceColor | null): Promise<void> {
   await db
     .update(gamesTable)
-    .set({ stop_time: new Date()})
+    .set({ stop_time: new Date(), game_status: "finsihed" })
     .where(eq(gamesTable.id, roomId));
   console.log(`Resolved game record ${roomId} with winner ${winner ?? "draw"}`);
 }
@@ -328,6 +329,7 @@ async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string, 
   }
 
   const  txReceipt = await walletClient.getTransactionReceipt({ hash: init_tx as `0x${string}` })
+  console.log("Transaction receipt for new game:", txReceipt);
   if (!txReceipt || txReceipt.status !== "success") {
     sendJson(ws, { type: "error", message: "Invalid transaction." });
     return;
