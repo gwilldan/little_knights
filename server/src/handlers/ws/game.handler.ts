@@ -2,7 +2,14 @@ import { Chess } from "chess.js";
 import { eq } from "drizzle-orm";
 import { db } from "../../db/db.init";
 import { gamesTable } from "../../db/schema";
-import type { GameMode, InboundMessage, MoveMessage, SocketClient } from "../../types/game";
+import type {
+  GameMode,
+  GameRoomState,
+  InboundMessage,
+  MoveMessage,
+  PieceColor,
+  SocketClient
+} from "../../types/game";
 import type { ManagedWebSocket } from "../../types/ws";
 import { selectBestMove } from "../../services/chessEngine.service";
 import {
@@ -23,12 +30,30 @@ type HandlerDeps = {
 };
 
 const roomClients = new Map<string, Map<string, SocketClient>>();
+const roomTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
-async function resolveGameRecord(roomId: string): Promise<void> {
+async function resolveGameRecord(roomId: string, winner: PieceColor | null): Promise<void> {
   await db
     .update(gamesTable)
     .set({ stop_time: new Date() })
     .where(eq(gamesTable.id, roomId));
+  console.log(`Resolved game record ${roomId} with winner ${winner ?? "draw"}`);
+}
+
+async function resolveGameOnContract(roomId: string, winner: PieceColor | null): Promise<void> {
+  // Placeholder hook for contract resolution integration.
+  // This is called on every terminal game state with the resolved winner.
+  console.log(`Resolve on contract requested for ${roomId} winner=${winner ?? "draw"}`);
+}
+
+async function isSingleGameOpen(roomId: string): Promise<boolean> {
+  const [game] = await db
+    .select()
+    .from(gamesTable)
+    .where(eq(gamesTable.id, roomId))
+    .limit(1);
+
+  return Boolean(game && !game.is_multiplayer && game.stop_time === null);
 }
 
 function getClients(roomId: string): Map<string, SocketClient> {
@@ -40,6 +65,65 @@ function getClients(roomId: string): Map<string, SocketClient> {
   const created = new Map<string, SocketClient>();
   roomClients.set(roomId, created);
   return created;
+}
+
+function clearRoomTimeout(roomId: string) {
+  const timeout = roomTurnTimeouts.get(roomId);
+  if (timeout) {
+    clearTimeout(timeout);
+    roomTurnTimeouts.delete(roomId);
+  }
+}
+
+function getCurrentTurnMs(room: GameRoomState): number {
+  const chess = new Chess(room.fen);
+  return chess.turn() === "w" ? room.whiteMs : room.blackMs;
+}
+
+function emitGameEnded(room: GameRoomState): void {
+  if (!room.endReason) return;
+  const clients = getClients(room.id);
+  for (const client of clients.values()) {
+    sendJson(client.ws as ManagedWebSocket, {
+      type: "game_end",
+      roomId: room.id,
+      winner: room.winner,
+      endReason: room.endReason
+    });
+  }
+}
+
+async function settleFinishedGame(roomId: string, room: GameRoomState): Promise<void> {
+  await resolveGameOnContract(roomId, room.winner);
+  await saveRoom(room);
+  await resolveGameRecord(roomId, room.winner);
+  await broadcastRoom(roomId);
+  emitGameEnded(room);
+  clearRoomTimeout(roomId);
+}
+
+function scheduleRoomTimeout(room: GameRoomState) {
+  clearRoomTimeout(room.id);
+  if (room.winner || room.activeTurnStartedAt === null) {
+    return;
+  }
+
+  const remainingMs = Math.max(1, getCurrentTurnMs(room));
+  const timeout = setTimeout(async () => {
+    const latest = await getRoom(room.id);
+    if (!latest) return;
+
+    const next = applyClockTick(latest);
+    if (!next.winner) {
+      await saveRoom(next);
+      scheduleRoomTimeout(next);
+      return;
+    }
+
+    await settleFinishedGame(room.id, next);
+  }, remainingMs + 50);
+
+  roomTurnTimeouts.set(room.id, timeout);
 }
 
 async function broadcastRoom(roomId: string): Promise<void> {
@@ -100,6 +184,14 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
   }
 
   const normalizedMode = deps.normalizeMode(mode);
+  if (normalizedMode === "single") {
+    const open = await isSingleGameOpen(roomId);
+    if (!open) {
+      sendJson(ws, { type: "error", message: "Game is not open on contract." });
+      return;
+    }
+  }
+
   const loaded = await getOrCreateRoom(roomId, normalizedMode);
   const room = applyClockTick(loaded);
 
@@ -122,6 +214,7 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
   ws.meta = { roomId, uid };
 
   await broadcastRoom(roomId);
+  scheduleRoomTimeout(room);
 }
 
 async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<void> {
@@ -140,9 +233,7 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 
   let room = applyClockTick(loaded);
   if (room.winner) {
-    await resolveGameRecord(roomId);
-    await saveRoom(room);
-    await broadcastRoom(roomId);
+    await settleFinishedGame(roomId, room);
     sendJson(ws, { type: "error", message: "Game is over." });
     return;
   }
@@ -182,9 +273,7 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
 
     room = applyClockTick(latest);
     if (room.winner) {
-      await resolveGameRecord(roomId);
-      await saveRoom(room);
-      await broadcastRoom(roomId);
+      await settleFinishedGame(roomId, room);
       return;
     }
 
@@ -214,11 +303,14 @@ async function handleMove(ws: ManagedWebSocket, message: MoveMessage): Promise<v
     }
   }
 
+  if (room.winner) {
+    await settleFinishedGame(roomId, room);
+    return;
+  }
+
   await saveRoom(room);
   await broadcastRoom(roomId);
-  if (room.winner) {
-    await resolveGameRecord(roomId);
-  }
+  scheduleRoomTimeout(room);
 }
 
 async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string): Promise<void> {
@@ -239,6 +331,10 @@ async function handleNewGame(ws: ManagedWebSocket, roomId: string, uid: string):
 
   await saveRoom(resetGameState(room));
   await broadcastRoom(roomId);
+  const updated = await getRoom(roomId);
+  if (updated) {
+    scheduleRoomTimeout(updated);
+  }
 }
 
 export async function onSocketMessage(ws: ManagedWebSocket, raw: unknown, deps: HandlerDeps): Promise<void> {
@@ -279,6 +375,7 @@ export async function onSocketClose(ws: ManagedWebSocket): Promise<void> {
 
   if (clients.size === 0) {
     roomClients.delete(ws.meta.roomId);
+    clearRoomTimeout(ws.meta.roomId);
   }
 
   // Persisted Redis room state remains intact for reconnect/resume.

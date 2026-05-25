@@ -1,7 +1,8 @@
+import { onSocketClose, onSocketMessage } from "../handlers/ws/game.handler";
 import type { WebSocketServer } from "ws";
-import { onSocketClose, onSocketMessage } from "../../handlers/ws/game.handler";
-import type { ManagedWebSocket } from "../../types/ws";
-import { getUserIdFromCookieHeader } from "../../utils/auth";
+
+import type { ManagedWebSocket } from "../types/ws";
+import { getUserIdFromCookieHeader } from "../utils/auth";
 
 function normalizeMode(value: string): "single" | "multiplayer" {
   return value === "single" ? "single" : "multiplayer";

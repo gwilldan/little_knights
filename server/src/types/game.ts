@@ -81,4 +81,11 @@ export type ErrorMessage = {
   message: string;
 };
 
-export type OutboundMessage = SnapshotMessage | JoinedMessage | ErrorMessage;
+export type GameEndedMessage = {
+  type: "game_end";
+  roomId: string;
+  winner: PieceColor | null;
+  endReason: GameEndReason;
+};
+
+export type OutboundMessage = SnapshotMessage | JoinedMessage | ErrorMessage | GameEndedMessage;

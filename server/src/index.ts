@@ -2,10 +2,10 @@ import "dotenv/config";
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
-import { registerGameSocketRoutes } from "./routes/ws/game.ws";
+import { registerGameSocketRoutes } from "./routes/ws.route";
 import { connectRedis } from "./services/redis.service";
 import { pg } from "./db/db.init";
-import { healthRouter, singleRouter, userRouter } from "./routes/http";
+import { healthRouter, singleRouter, userRouter } from "./routes/http.route";
 import cors from "cors";
 
 const PORT = Number(process.env.PORT || 8080);
