@@ -3,6 +3,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     networks:
+      - proxy
       - postgres-internal
     volumes:
       - postgres_data:/var/lib/postgresql
