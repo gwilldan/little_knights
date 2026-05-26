@@ -97,7 +97,7 @@ export default function SingleChessGame() {
 
     if (!walletAddress) {
       console.error("[single-game] Wallet not connected.");
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("No wallet address");
       setStartLoading(false);
       return;
     }
@@ -123,11 +123,7 @@ export default function SingleChessGame() {
       setRoomId(result.gameId);
     } catch (error) {
       console.error("[single-game] createSingleGame failed.", error);
-      setStartError(
-        isRejectedTransactionError(error)
-          ? REJECTED_TRANSACTION_ERROR
-          : TRANSACTION_FAILED_ERROR,
-      );
+      setStartError(error as any);
       setStartLoading(false);
       return;
     }
@@ -140,18 +136,9 @@ export default function SingleChessGame() {
         txHash,
       });
 
-      if (!saved) {
-        console.error("[single-game] saveSingleGame returned false.", {
-          roomId: gameId,
-          uid: walletAddress,
-        });
-        setStartError(TRANSACTION_FAILED_ERROR);
-        setStartLoading(false);
-        return;
-      }
     } catch (error) {
       console.error("[single-game] saveSingleGame request failed.", error);
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError(error as string);
       setStartLoading(false);
       return;
     }
@@ -165,14 +152,14 @@ export default function SingleChessGame() {
       });
     } catch (error) {
       console.error("[single-game] signInUser failed.", error);
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError(error as string);
       setStartLoading(false);
       return;
     }
 
     if (!signedIn) {
       console.error("[single-game] signInUser returned false.");
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("Wallet not signed In");
       setStartLoading(false);
       return;
     }
