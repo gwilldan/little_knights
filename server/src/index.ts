@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
   
   // middlewares
   app.use(cors({
-    origin: ["https://chess.gwilldan.xyz", "http://localhost:5173"],
+    origin: ["https://chess.gwilldan.xyz", "http://localhost:5173", "https://staging-chess.gwilldan.xyz"],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
