@@ -7,25 +7,45 @@ import NetworkChessGame from "~/components/networkChessGame";
 import { useAppSession } from "~/utils/app-session";
 import { signInUser } from "~/utils/auth";
 import { saveSingleGame } from "~/utils/game";
+import { CreateSingleGameError } from "~/utils/contract-calls/singleGame";
 import ExitButton from "./exitButton";
 
 const BET_AMOUNT = import.meta.env.VITE_BET_AMOUNT!;
 const INSUFFICIENT_BALANCE_ERROR = "Insufficient USDC balance. Refill your wallet to play.";
 const REJECTED_TRANSACTION_ERROR = "You've rejected transaction error";
-const TRANSACTION_FAILED_ERROR = "transaction failed";
+const GENERIC_ERROR = "Action failed.";
 
-function isRejectedTransactionError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
+function getCreateGameErrorMessage(error: unknown) {
+  if (!(error instanceof CreateSingleGameError)) {
+    return GENERIC_ERROR;
   }
 
-  const message = error.message.toLowerCase();
-  return (
-    message.includes("user rejected") ||
-    message.includes("user denied") ||
-    message.includes("rejected") ||
-    message.includes("denied")
-  );
+  switch (error.code) {
+    case "WALLET_PROVIDER_NOT_FOUND":
+      return "Wallet not connected.";
+    case "INVALID_BET_AMOUNT":
+      return "Invalid bet amount.";
+    case "ALLOWANCE_CHECK_FAILED":
+      return "Allowance check failed.";
+    case "APPROVAL_REJECTED":
+    case "CREATE_TX_REJECTED":
+      return REJECTED_TRANSACTION_ERROR;
+    case "APPROVAL_REVERTED":
+      return "Approval tx reverted.";
+    case "APPROVAL_TX_FAILED":
+    case "APPROVAL_RECEIPT_FAILED":
+      return "Approval failed.";
+    case "CREATE_TX_REVERTED":
+      return "Game tx reverted.";
+    case "CREATE_GAS_ESTIMATE_FAILED":
+      return "Game tx estimate failed.";
+    case "CREATE_TX_FAILED":
+      return "Failed to send game tx.";
+    case "CREATE_RECEIPT_FAILED":
+      return "Game tx failed.";
+    default:
+      return GENERIC_ERROR;
+  }
 }
 
 export default function SingleChessGame() {
@@ -97,7 +117,7 @@ export default function SingleChessGame() {
 
     if (!walletAddress) {
       console.error("[single-game] Wallet not connected.");
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("Wallet not connected.");
       setStartLoading(false);
       return;
     }
@@ -123,11 +143,7 @@ export default function SingleChessGame() {
       setRoomId(result.gameId);
     } catch (error) {
       console.error("[single-game] createSingleGame failed.", error);
-      setStartError(
-        isRejectedTransactionError(error)
-          ? REJECTED_TRANSACTION_ERROR
-          : TRANSACTION_FAILED_ERROR,
-      );
+      setStartError(getCreateGameErrorMessage(error));
       setStartLoading(false);
       return;
     }
@@ -145,13 +161,13 @@ export default function SingleChessGame() {
           roomId: gameId,
           uid: walletAddress,
         });
-        setStartError(TRANSACTION_FAILED_ERROR);
+        setStartError("Failed to save game.");
         setStartLoading(false);
         return;
       }
     } catch (error) {
       console.error("[single-game] saveSingleGame request failed.", error);
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("Failed to save game.");
       setStartLoading(false);
       return;
     }
@@ -165,14 +181,14 @@ export default function SingleChessGame() {
       });
     } catch (error) {
       console.error("[single-game] signInUser failed.", error);
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("Sign-in failed.");
       setStartLoading(false);
       return;
     }
 
     if (!signedIn) {
       console.error("[single-game] signInUser returned false.");
-      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartError("Sign-in failed.");
       setStartLoading(false);
       return;
     }
