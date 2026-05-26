@@ -29,6 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="talentapp:project_verification" content="69ddcaf5789731885e1598f0270a076dab6a8c2cb9eb9133fdf09bd10a4e9e4a2b8a771176d35404a12ebe71025f5fd745980a8bae1a3fdbae14b0df98677200"></meta>
         <Meta />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <Links />
