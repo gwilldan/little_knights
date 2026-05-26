@@ -29,7 +29,6 @@ function isRejectedTransactionError(error: unknown) {
 }
 
 export default function SingleChessGame() {
-  const navigate = useNavigate();
   const { walletAddress, createSingleGame } = useAppSession();
 
   const [readyToPlay, setReadyToPlay] = useState(false);

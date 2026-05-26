@@ -3,6 +3,8 @@ import type { Route } from "./+types/profile";
 import { useAppSession } from "~/utils/app-session";
 import { useEffect, useMemo, useState } from "react";
 import { readContract } from "viem/actions";
+import { createPublicClient, erc20Abi, formatUnits, http } from "viem";
+import { celoSepolia } from "viem/chains";
 
 
 export function meta({}: Route.MetaArgs) {
@@ -17,11 +19,48 @@ export default function ProfileRoute() {
   const [usdc, setUsdc] = useState("--");
   const { walletAddress, isMiniPay, healthOk } = useAppSession();
 
-  // useEffect(() => {
-  //   (async () => {
-  //     const val = await readContract(client)
-  //   })()
-  // }, [])
+  useEffect(() => {
+
+
+    let active = true;
+
+    (async () => {
+      async function loadUsdcBalance() {
+        try {
+          const stablecoinAddress = import.meta.env
+            .VITE_STABLECOIN_CONTRACT_ADDRESS;
+          const stablecoinDecimals = Number(
+            import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6,
+          );
+
+          const publicClient = createPublicClient({
+            chain: celoSepolia,
+            transport: http(),
+          });
+
+          const balance = await publicClient.readContract({
+            address: stablecoinAddress,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [walletAddress as `0x${string}`],
+          });
+
+          if (!active) return;
+          setUsdc(
+            Number(formatUnits(balance, stablecoinDecimals)).toFixed(2),
+          );
+        }catch(err) {
+          console.log("error", err)
+        }
+      }
+
+      await loadUsdcBalance();
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [walletAddress]);
 
   return (
     <main className="lk-app-background flex min-h-dvh items-center justify-center p-6">

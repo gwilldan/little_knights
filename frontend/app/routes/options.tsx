@@ -17,7 +17,8 @@ export default function OptionsRoute() {
 
   return (
     <main className="lk-app-background flex min-h-dvh items-center justify-center p-6">
-      <div className="mx-auto w-[min(92vw,430px)]">
+      <div className="lk-single-panel">
+      {/* <div className="mx-auto w-[min(92vw,430px)]"> */}
         <h1
           className="mb-5 mt-0 uppercase font-extrabold tracking-[0.04em] text-[#ebcc8b]"
           style={{
@@ -28,58 +29,41 @@ export default function OptionsRoute() {
           Options
         </h1>
 
-        <section className="lk-options-list">
+        <section className=" flex flex-col my-4 ">
           <label className="lk-option-row">
-            <span>Sound</span>
             <input
               checked={settings.soundEnabled}
               onChange={(event) => updateSetting("soundEnabled", event.target.checked)}
               type="checkbox"
             />
+            <span className="mx-2" >Sound</span>
           </label>
 
           <label className="lk-option-row">
-            <span>Show Legal Moves</span>
             <input
               checked={settings.showLegalMoves}
               onChange={(event) => updateSetting("showLegalMoves", event.target.checked)}
               type="checkbox"
             />
+            <span className="mx-2" >Show Legal Moves</span>
           </label>
 
           <label className="lk-option-row">
-            <span>Auto Promote To Queen</span>
-            <input
-              checked={settings.autoPromoteToQueen}
-              onChange={(event) => updateSetting("autoPromoteToQueen", event.target.checked)}
-              type="checkbox"
-            />
-          </label>
-
-          <label className="lk-option-row">
-            <span>Flip Board</span>
             <input
               checked={settings.boardFlipped}
               onChange={(event) => updateSetting("boardFlipped", event.target.checked)}
               type="checkbox"
             />
+            <span className="mx-2">Flip Board</span>
           </label>
 
-          <label className="lk-option-row lk-option-row-stack">
-            <span>WebSocket URL</span>
-            <input
-              className="lk-option-input"
-              onChange={(event) => updateSetting("wsUrl", event.target.value)}
-              type="text"
-              value={settings.wsUrl}
-            />
-          </label>
         </section>
 
         <Link className="lk-menu-button" to="/">
           Back
         </Link>
       </div>
+
     </main>
   );
 }
