@@ -29,7 +29,7 @@ export default function ProfileRoute() {
             Server: <span className="font-semibold text-[#f4dfbc]">{healthOk ? "Connected" : "Unavailable"}</span>
           </p>
           <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
-            Games created: <span className="font-semibold text-[#f4dfbc]">{gameCount}</span>
+            USDC Bal: <span className="font-semibold text-[#f4dfbc]">$ {gameCount}</span>
           </p>
         </section>
 
