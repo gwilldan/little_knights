@@ -3,15 +3,22 @@ import { getHealth } from "../handlers/http/health.handler";
 import { auth } from "../handlers/auth.middleware";
 import { saveSingleGame } from "../handlers/http/single.handler";
 import { getUser, signInUser } from "../handlers/http/users.handler";
+import { getTxNonce} from "../handlers/http/redis.handler";
+
+export const router = Router()
 
 // health check endpoint
-export const healthRouter = Router().get("/health", getHealth);
+router.get("/health", getHealth);
 
 // singlGamee game endpoint
-export const singleRouter = Router().post("/game/single", auth, saveSingleGame);
+router.post("/game/single", auth, saveSingleGame);
 
 // user endpoints
-export const userRouter = Router();
-userRouter.route("/user").get(getUser)
-userRouter.post("/user/signin", signInUser)
+router.route("/user").get(getUser)
+router.post("/user/signin", signInUser)
+
+// test 
+router.route("/redis").get(getTxNonce)
+
+
 
