@@ -18,11 +18,14 @@ export default function SingleChessGame() {
   const [startLoading, setStartLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<string>("--");
-  const [initTx, setInitTx] = useState<string>("");
+  const [balLoading, setBalLoading] = useState<boolean>(true);
 
   const [roomId, setRoomId] = useState<string>(`lk-pending-${Date.now()}`);
 
+  console.log("startloading", startLoading)
+
   useEffect(() => {
+    setBalLoading(true);
     if (!walletAddress) {
       setUsdcBalance("--");
       return;
@@ -30,35 +33,44 @@ export default function SingleChessGame() {
 
     let active = true;
 
-    async function loadUsdcBalance() {
-      try {
-        const stablecoinAddress = import.meta.env.VITE_STABLECOIN_CONTRACT_ADDRESS;
-        const stablecoinDecimals = Number(import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6);
-        if (!stablecoinAddress) {
+    (async () => {
+      async function loadUsdcBalance() {
+        try {
+          const stablecoinAddress = import.meta.env
+            .VITE_STABLECOIN_CONTRACT_ADDRESS;
+          const stablecoinDecimals = Number(
+            import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6,
+          );
+          if (!stablecoinAddress) {
+            if (active) setUsdcBalance("--");
+            return;
+          }
+
+          const publicClient = createPublicClient({
+            chain: celoSepolia,
+            transport: http(),
+          });
+
+          const balance = await publicClient.readContract({
+            address: stablecoinAddress,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [walletAddress as `0x${string}`],
+          });
+
+          if (!active) return;
+          setUsdcBalance(
+            Number(formatUnits(balance, stablecoinDecimals)).toFixed(2),
+          );
+        } catch {
           if (active) setUsdcBalance("--");
-          return;
         }
-
-        const publicClient = createPublicClient({
-          chain: celoSepolia,
-          transport: http(),
-        });
-
-        const balance = await publicClient.readContract({
-          address: stablecoinAddress,
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [walletAddress as `0x${string}`],
-        });
-
-        if (!active) return;
-        setUsdcBalance(Number(formatUnits(balance, stablecoinDecimals)).toFixed(2));
-      } catch {
-        if (active) setUsdcBalance("--");
       }
-    }
 
-    loadUsdcBalance();
+      await loadUsdcBalance();
+      setBalLoading(false);
+    })();
+
     return () => {
       active = false;
     };
@@ -74,7 +86,7 @@ export default function SingleChessGame() {
       return;
     }
 
-    if(usdcBalance < BET_AMOUNT) {
+    if (usdcBalance < BET_AMOUNT) {
       setStartError("Insufficient USDC balance. Refill your wallet to play.");
       setStartLoading(false);
       return;
@@ -88,9 +100,12 @@ export default function SingleChessGame() {
       gameId = result.gameId;
       txHash = result.txHash;
       setRoomId(result.gameId);
-      setInitTx(txHash);
     } catch (error) {
-      setStartError(error instanceof Error ? `Contract transaction failed: ${error.message}` : "Contract transaction failed.");
+      setStartError(
+        error instanceof Error
+          ? `Contract transaction failed: ${error.message}`
+          : "Contract transaction failed.",
+      );
       setStartLoading(false);
       return;
     }
@@ -104,12 +119,18 @@ export default function SingleChessGame() {
       });
 
       if (!saved) {
-        setStartError("Contract succeeded, but saving game details on server failed.");
+        setStartError(
+          "Contract succeeded, but saving game details on server failed.",
+        );
         setStartLoading(false);
         return;
       }
     } catch (error) {
-      setStartError(error instanceof Error ? `Server save failed: ${error.message}` : "Server save failed.");
+      setStartError(
+        error instanceof Error
+          ? `Server save failed: ${error.message}`
+          : "Server save failed.",
+      );
       setStartLoading(false);
       return;
     }
@@ -132,7 +153,15 @@ export default function SingleChessGame() {
 
   return (
     <>
-      <NetworkChessGame enabled={readyToPlay} mode="single" opponentLabel="AI" roomId={roomId} title="Single Player" uid={walletAddress!} init_tx={initTx} />
+      <NetworkChessGame
+        enabled={readyToPlay}
+        mode="single"
+        opponentLabel="AI"
+        roomId={roomId}
+        title="Single Player"
+        uid={walletAddress!}
+        setStartLoading={setStartLoading}
+      />
 
       {!readyToPlay ? (
         <div className="lk-modal-backdrop lk-modal-backdrop-fixed">
@@ -154,15 +183,22 @@ export default function SingleChessGame() {
             <p className="lk-start-kicker">Timed Competition</p>
             <h2>Little Knights</h2>
             <p className="lk-start-copy">
-              Entry costs ${BET_AMOUNT}. Win against the bot and take home $2 (100% profit). If your clock hits zero, you lose.
+              Entry costs ${BET_AMOUNT}. Win against the bot and take home ${BET_AMOUNT * 2}
+              (100% profit). If your clock hits zero, you lose.
             </p>
-            <p className="lk-start-terms">By proceeding, you agree to the competition terms.</p>
+            <p className="lk-start-terms">
+              By proceeding, you agree to the competition terms.
+            </p>
 
-            {startError ? <p className="bg-red-200/80 border border-red-500 text-red-700 p-2">{startError}</p> : null}
+            {startError ? (
+              <p className="bg-red-200/80 border border-red-500 text-red-700 p-2">
+                {startError}
+              </p>
+            ) : null}
 
             <button
               className="lk-action-btn lk-action-primary lk-start-play"
-              disabled={startLoading}
+              disabled={balLoading}
               onClick={handleStartPlay}
               type="button"
             >
@@ -172,9 +208,11 @@ export default function SingleChessGame() {
             <div className="flex items-center justify-between">
               <p className="lk-start-wallet-line flex items-center gap-1">
                 <Wallet size={14} />
-                {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Not connected"}
+                {walletAddress
+                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                  : "Not connected"}
               </p>
-              <p className="lk-start-wallet-line">$ {usdcBalance}</p>
+              <p className="lk-start-wallet-line">${usdcBalance} USDC</p>
             </div>
           </div>
         </div>

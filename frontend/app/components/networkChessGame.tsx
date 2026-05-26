@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate } from "react-router";
 import { Chess } from "chess.js";
 import { Chessboard, type ChessboardOptions, type SquareHandlerArgs } from "react-chessboard";
@@ -21,8 +21,8 @@ type NetworkChessGameProps = {
   roomId: string;
   title: string;
   opponentLabel: string;
+  setStartLoading: Dispatch<SetStateAction<boolean>>;
   uid?: string;
-  init_tx: string;
   enabled?: boolean;
 };
 
@@ -50,8 +50,8 @@ export default function NetworkChessGame({
   roomId,
   opponentLabel,
   uid: uidProp,
-  enabled = true,   
-  init_tx
+  enabled = true,
+  setStartLoading   
 }: NetworkChessGameProps) {
   const navigate = useNavigate();
 
@@ -366,9 +366,8 @@ export default function NetworkChessGame({
   const handlePlayAgain = () => {
     if (mode === "single") {
       try {
-        console.log("Navigating to /single/play for rematch");
         socketRef?.current?.close();
-        navigate(`/single/play`);
+        setStartLoading(true)
       } catch (error) {
         console.log("error:", error)
       }
