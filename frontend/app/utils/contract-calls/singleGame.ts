@@ -1,7 +1,6 @@
 import {
   createPublicClient,
-  createWalletClient,
-  custom,
+  encodeFunctionData,
   erc20Abi,
   http,
   keccak256,
@@ -35,12 +34,6 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
     throw new Error("Bet amount must be greater than zero.");
   }
 
-  const walletClient = createWalletClient({
-    account,
-    chain: celoSepolia,
-    transport: custom(ethereum),
-  });
-
   const publicClient = createPublicClient({
     chain: celoSepolia,
     transport: http(import.meta.env.VITE_CELO_RPC_URL),
@@ -54,13 +47,15 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
   });
 
   if (currentAllowance < amount) {
-    const approveTxHash = await walletClient.writeContract({
-      address: stablecoinAddress,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [escrowContractAddress, maxInt256],
-      account,
-      chain: celoSepolia,
+    const approveTxHash = await sendContractTx({
+      ethereum,
+      from: account,
+      to: stablecoinAddress,
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [escrowContractAddress, maxInt256],
+      }),
     });
 
     await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
@@ -68,13 +63,15 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
 
   const gameId = keccak256(toBytes(`${walletAddress}-${Date.now()}`));
 
-  const txHash = await walletClient.writeContract({
-    address: escrowContractAddress,
-    abi: escrowAbi,
-    functionName: "createSingleGame",
-    args: [gameId, account, amount],
-    account,
-    chain: celoSepolia,
+  const txHash = await sendContractTx({
+    ethereum,
+    from: account,
+    to: escrowContractAddress,
+    data: encodeFunctionData({
+      abi: escrowAbi,
+      functionName: "createSingleGame",
+      args: [gameId, account, amount],
+    }),
   });
 
   const txReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -84,6 +81,36 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
   } 
 
   return { gameId, txHash };
+}
+
+async function sendContractTx({
+  ethereum,
+  from,
+  to,
+  data,
+}: {
+  ethereum: EIP1193Provider;
+  from: Address;
+  to: Address;
+  data: `0x${string}`;
+}) {
+  // Leave feeCurrency unset so MiniPay can auto-select the user's best fee token.
+  const hash = await ethereum.request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        from,
+        to,
+        data,
+      },
+    ],
+  });
+
+  if (typeof hash !== "string" || !hash.startsWith("0x")) {
+    throw new Error("Wallet did not return a valid transaction hash.");
+  }
+
+  return hash as `0x${string}`;
 }
 
 function readAddressEnv(key: "VITE_ESCROW_CONTRACT_ADDRESS" | "VITE_STABLECOIN_CONTRACT_ADDRESS") {
