@@ -1,6 +1,9 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/profile";
 import { useAppSession } from "~/utils/app-session";
+import { useEffect, useMemo, useState } from "react";
+import { readContract } from "viem/actions";
+
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -10,7 +13,15 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function ProfileRoute() {
-  const { walletAddress, isMiniPay, healthOk, gameCount } = useAppSession();
+  
+  const [usdc, setUsdc] = useState("--");
+  const { walletAddress, isMiniPay, healthOk } = useAppSession();
+
+  // useEffect(() => {
+  //   (async () => {
+  //     const val = await readContract(client)
+  //   })()
+  // }, [])
 
   return (
     <main className="lk-app-background flex min-h-dvh items-center justify-center p-6">
@@ -29,7 +40,7 @@ export default function ProfileRoute() {
             Server: <span className="font-semibold text-[#f4dfbc]">{healthOk ? "Connected" : "Unavailable"}</span>
           </p>
           <p className="mb-0 mt-2 text-xs text-[#d5b07c]">
-            USDC Bal: <span className="font-semibold text-[#f4dfbc]">$ {gameCount}</span>
+            USDC Bal: <span className="font-semibold text-[#f4dfbc]">$ {usdc}</span>
           </p>
         </section>
 

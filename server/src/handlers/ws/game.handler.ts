@@ -47,10 +47,8 @@ async function resolveGameOnContract(room: GameRoomState): Promise<void> {
 
   const winnerAddress = room.winner === "w" ? room.player1_id : room.winner === "b" ? room.player2_id : "0x0000000000000000000000000000000000000000";
 
-  console.log("winnerAddress to resolve on contract:", winnerAddress, room.winner, room.player1_id, room.player2_id);
-
   const tx = await writeResolve(room.id as `0x${string}`, winnerAddress as `0x{string}`);
-  console.log(`Resolve on contract requested for ${room.id} winner=${room.winner} txHash=${tx}`);
+  console.log(`Resolve on contract successful for ${room.id} winner=${room.winner} txHash=${tx}`);
 }
 
 async function isSingleGameOpen(roomId: string): Promise<boolean> {

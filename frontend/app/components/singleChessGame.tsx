@@ -7,8 +7,26 @@ import NetworkChessGame from "~/components/networkChessGame";
 import { useAppSession } from "~/utils/app-session";
 import { signInUser } from "~/utils/auth";
 import { saveSingleGame } from "~/utils/game";
+import ExitButton from "./exitButton";
 
 const BET_AMOUNT = import.meta.env.VITE_BET_AMOUNT!;
+const INSUFFICIENT_BALANCE_ERROR = "Insufficient USDC balance. Refill your wallet to play.";
+const REJECTED_TRANSACTION_ERROR = "You've rejected transaction error";
+const TRANSACTION_FAILED_ERROR = "transaction failed";
+
+function isRejectedTransactionError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("user rejected") ||
+    message.includes("user denied") ||
+    message.includes("rejected") ||
+    message.includes("denied")
+  );
+}
 
 export default function SingleChessGame() {
   const navigate = useNavigate();
@@ -21,8 +39,6 @@ export default function SingleChessGame() {
   const [balLoading, setBalLoading] = useState<boolean>(true);
 
   const [roomId, setRoomId] = useState<string>(`lk-pending-${Date.now()}`);
-
-  console.log("startloading", startLoading)
 
   useEffect(() => {
     setBalLoading(true);
@@ -81,13 +97,19 @@ export default function SingleChessGame() {
     setStartError(null);
 
     if (!walletAddress) {
-      setStartError("Wallet not connected.");
+      console.error("[single-game] Wallet not connected.");
+      setStartError(TRANSACTION_FAILED_ERROR);
       setStartLoading(false);
       return;
     }
 
     if (usdcBalance < BET_AMOUNT) {
-      setStartError("Insufficient USDC balance. Refill your wallet to play.");
+      console.error("[single-game] Insufficient USDC balance.", {
+        walletAddress,
+        usdcBalance,
+        betAmount: BET_AMOUNT,
+      });
+      setStartError(INSUFFICIENT_BALANCE_ERROR);
       setStartLoading(false);
       return;
     }
@@ -101,10 +123,11 @@ export default function SingleChessGame() {
       txHash = result.txHash;
       setRoomId(result.gameId);
     } catch (error) {
+      console.error("[single-game] createSingleGame failed.", error);
       setStartError(
-        error instanceof Error
-          ? `Contract transaction failed: ${error.message}`
-          : "Contract transaction failed.",
+        isRejectedTransactionError(error)
+          ? REJECTED_TRANSACTION_ERROR
+          : TRANSACTION_FAILED_ERROR,
       );
       setStartLoading(false);
       return;
@@ -119,30 +142,38 @@ export default function SingleChessGame() {
       });
 
       if (!saved) {
-        setStartError(
-          "Contract succeeded, but saving game details on server failed.",
-        );
+        console.error("[single-game] saveSingleGame returned false.", {
+          roomId: gameId,
+          uid: walletAddress,
+        });
+        setStartError(TRANSACTION_FAILED_ERROR);
         setStartLoading(false);
         return;
       }
     } catch (error) {
-      setStartError(
-        error instanceof Error
-          ? `Server save failed: ${error.message}`
-          : "Server save failed.",
-      );
+      console.error("[single-game] saveSingleGame request failed.", error);
+      setStartError(TRANSACTION_FAILED_ERROR);
       setStartLoading(false);
       return;
     }
 
-    const signedIn = await signInUser({
-      id: walletAddress,
-      name: `Player-${walletAddress.slice(2, 8)}`,
-      balance: "0",
-    });
+    let signedIn = false;
+    try {
+      signedIn = await signInUser({
+        id: walletAddress,
+        name: `Player-${walletAddress.slice(2, 8)}`,
+        balance: "0",
+      });
+    } catch (error) {
+      console.error("[single-game] signInUser failed.", error);
+      setStartError(TRANSACTION_FAILED_ERROR);
+      setStartLoading(false);
+      return;
+    }
 
     if (!signedIn) {
-      setStartError("Sign in failed. Register your player before competing.");
+      console.error("[single-game] signInUser returned false.");
+      setStartError(TRANSACTION_FAILED_ERROR);
       setStartLoading(false);
       return;
     }
@@ -151,12 +182,21 @@ export default function SingleChessGame() {
     setStartLoading(false);
   }
 
+  function handlePlayAgain() {
+    setReadyToPlay(false);
+    setStartLoading(false);
+    setStartError(null);
+    setRoomId(`lk-pending-${Date.now()}`);
+  }
+
   return (
     <>
       <NetworkChessGame
+        key={roomId}
         enabled={readyToPlay}
         mode="single"
         opponentLabel="AI"
+        onSinglePlayAgain={handlePlayAgain}
         roomId={roomId}
         title="Single Player"
         uid={walletAddress!}
@@ -166,14 +206,7 @@ export default function SingleChessGame() {
       {!readyToPlay ? (
         <div className="lk-modal-backdrop lk-modal-backdrop-fixed">
           <div className="lk-modal lk-modal-dark lk-start-modal">
-            <button
-              aria-label="Exit to home"
-              className="lk-modal-close"
-              onClick={() => navigate("/")}
-              type="button"
-            >
-              ×
-            </button>
+           <ExitButton />
 
             <div aria-hidden className="lk-start-loader">
               <span className="lk-start-loader-piece">♞</span>

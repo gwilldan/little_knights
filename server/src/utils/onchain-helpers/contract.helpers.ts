@@ -22,7 +22,5 @@ export const writeResolve = async (gameId: `0x${string}`, winner: `0x${string}`)
         return tx;
     } catch (error) {
         console.error("Error writing resolve transaction:", error);
-
-        // save error
     }    
 }

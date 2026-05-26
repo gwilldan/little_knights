@@ -24,7 +24,7 @@ export default function Home() {
           Little Knights
         </h1>
 
-        <nav className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-4" aria-label="Main menu">
+        <nav className="mx-auto flex w-full max-w-105 flex-col items-center gap-4" aria-label="Main menu">
           <Link className="lk-menu-button" to="/single/play">
             One Player
           </Link>

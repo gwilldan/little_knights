@@ -1,7 +1,5 @@
-// import {redis} from "../../services/redis.service"
 import {walletClient} from "./viem.init"
 
-let txNonce: number | null = null
 let processing = false
 
 export const getNonce = async () => {
@@ -11,14 +9,12 @@ export const getNonce = async () => {
 
         processing = true;
 
-        if(txNonce == null) {
-            const getTxCount = await walletClient.getTransactionCount({
-                address: walletClient.account.address,
-                blockTag: "pending"
-            })
-            txNonce = getTxCount
-        }
-        return txNonce++
+        const txCount = await walletClient.getTransactionCount({
+            address: walletClient.account.address,
+            blockTag: "pending"
+        })
+
+        return txCount
     } catch (error) {
         throw ({
             message: "failed to get Nonce",
