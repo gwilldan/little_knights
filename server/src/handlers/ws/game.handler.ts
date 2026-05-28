@@ -33,6 +33,7 @@ type HandlerDeps = {
 
 const roomClients = new Map<string, Map<string, SocketClient>>();
 const roomTurnTimeouts = new Map<string, NodeJS.Timeout>();
+const roomDisconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
 // update this to save winner while updating records!
 async function resolveGameRecord(roomId: string, winner: PieceColor | null): Promise<void> {
@@ -80,6 +81,14 @@ function clearRoomTimeout(roomId: string) {
   }
 }
 
+function clearDisconnectTimeout(roomId: string) {
+  const timeout = roomDisconnectTimeouts.get(roomId);
+  if (timeout) {
+    clearTimeout(timeout);
+    roomDisconnectTimeouts.delete(roomId);
+  }
+}
+
 function getCurrentTurnMs(room: GameRoomState): number {
   const chess = new Chess(room.fen);
   return chess.turn() === "w" ? room.whiteMs : room.blackMs;
@@ -108,6 +117,7 @@ async function settleFinishedGame(roomId: string, room: GameRoomState): Promise<
   ]);
   emitGameEnded(room);
   clearRoomTimeout(roomId);
+  clearDisconnectTimeout(roomId);
 }
 
 function scheduleRoomTimeout(room: GameRoomState) {
@@ -132,6 +142,44 @@ function scheduleRoomTimeout(room: GameRoomState) {
   }, remainingMs + 50);
 
   roomTurnTimeouts.set(room.id, timeout);
+}
+
+function scheduleSingleDisconnectTimeout(room: GameRoomState) {
+  clearDisconnectTimeout(room.id);
+  clearRoomTimeout(room.id);
+
+  if (room.mode !== "single" || room.winner) {
+    return;
+  }
+
+  const remainingMs = Math.max(1, getCurrentTurnMs(room));
+  const timeout = setTimeout(async () => {
+    roomDisconnectTimeouts.delete(room.id);
+
+    const clients = getClients(room.id);
+    if (clients.size > 0) {
+      return;
+    }
+
+    const latest = await getRoom(room.id);
+    if (!latest || latest.mode !== "single" || latest.winner) {
+      return;
+    }
+
+    const timedOut = applyClockTick(latest);
+    const next = withGameResult(
+      {
+        ...timedOut,
+        whiteMs: 0
+      },
+      "timeout",
+      "b"
+    );
+
+    await settleFinishedGame(room.id, next);
+  }, remainingMs + 50);
+
+  roomDisconnectTimeouts.set(room.id, timeout);
 }
 
 async function broadcastRoom(roomId: string): Promise<void> {
@@ -208,6 +256,12 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
     return;
   }
 
+  if (room.winner) {
+    await settleFinishedGame(roomId, room);
+    sendJson(ws, { type: "error", message: "Game is over." });
+    return;
+  }
+
   const color = assignColor(room, uid);
   if (!color) {
     sendJson(ws, { type: "error", message: "Room is full." });
@@ -218,6 +272,7 @@ async function handleJoin(ws: ManagedWebSocket, message: InboundMessage, deps: H
   await saveRoom(room);
 
   const clients = getClients(roomId);
+  clearDisconnectTimeout(roomId);
   clients.set(uid, { uid, color, ws });
   ws.meta = { roomId, uid };
 
@@ -389,8 +444,14 @@ export async function onSocketClose(ws: ManagedWebSocket): Promise<void> {
   clients.delete(ws.meta.uid);
 
   if (clients.size === 0) {
+    const room = await getRoom(ws.meta.roomId);
     roomClients.delete(ws.meta.roomId);
+    if (room?.mode === "single" && !room.winner) {
+      scheduleSingleDisconnectTimeout(room);
+      return;
+    }
     clearRoomTimeout(ws.meta.roomId);
+    clearDisconnectTimeout(ws.meta.roomId);
   }
 
   // Persisted Redis room state remains intact for reconnect/resume.

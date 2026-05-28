@@ -94,12 +94,13 @@ export default function NetworkChessGame({
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const lastFenRef = useRef<string | null>(null);
+  const soundEnabledRef = useRef(true);
 
   const wsUrl = loadSettings().wsUrl;
   const uid = useMemo(() => uidProp ?? getOrCreateUid(), [uidProp]);
 
   function playTone(frequency: number, durationMs: number) {
-    if (!soundEnabled || typeof window === "undefined") {
+    if (!soundEnabledRef.current || typeof window === "undefined") {
       return false;
     }
 
@@ -252,6 +253,7 @@ export default function NetworkChessGame({
 
   function toggleSound() {
     const nextValue = !soundEnabled;
+    soundEnabledRef.current = nextValue;
     setSoundEnabled(nextValue);
     saveSettings({ ...loadSettings(), soundEnabled: nextValue });
     return true;
@@ -259,7 +261,9 @@ export default function NetworkChessGame({
 
   useEffect(() => {
     setIsMounted(true);
-    setSoundEnabled(loadSettings().soundEnabled);
+    const storedSoundEnabled = loadSettings().soundEnabled;
+    soundEnabledRef.current = storedSoundEnabled;
+    setSoundEnabled(storedSoundEnabled);
   }, []);
 
   useEffect(() => {
@@ -275,21 +279,25 @@ export default function NetworkChessGame({
     setConnectionState("connecting");
     setStatus("Connecting...");
 
+    let active = true;
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
     socket.addEventListener("open", () => {
+      if (!active) return;
       setConnectionState("connected");
       setStatus("Connected");
       sendJson(socket, { type: "join", mode, roomId, uid });
     });
 
     socket.addEventListener("close", () => {
+      if (!active) return;
       setConnectionState("disconnected");
       setStatus("Disconnected");
     });
 
     socket.addEventListener("error", () => {
+      if (!active) return;
       setConnectionState("disconnected");
       setStatus("Disconnected");
     });
@@ -311,11 +319,7 @@ export default function NetworkChessGame({
 
       if (message.type === "snapshot") {
         const next = message as GameSnapshotMessage;
-        if (
-          lastFenRef.current &&
-          lastFenRef.current !== next.fen &&
-          next.turn !== myColor
-        ) {
+        if (mode === "single" && lastFenRef.current && lastFenRef.current !== next.fen) {
           playMoveSound();
         }
         lastFenRef.current = next.fen;
@@ -341,10 +345,13 @@ export default function NetworkChessGame({
     });
 
     return () => {
+      active = false;
       socket.close();
-      socketRef.current = null;
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
     };
-  }, [enabled, isMounted, mode, roomId, uid, wsUrl, myColor, reconnectNonce]);
+  }, [enabled, isMounted, mode, roomId, uid, wsUrl, reconnectNonce]);
 
   const whiteBase = snapshot?.whiteMs ?? 60_000;
   const blackBase = snapshot?.blackMs ?? 60_000;
@@ -419,6 +426,17 @@ export default function NetworkChessGame({
   const handleCloseGame = () => {
     socketRef?.current?.close();
     navigate("/");
+  };
+
+  const handleReconnect = () => {
+    if (mode !== "single") {
+      return;
+    }
+
+    setConnectionState("connecting");
+    setStatus("Reconnecting...");
+    socketRef.current?.close();
+    setReconnectNonce((nonce) => nonce + 1);
   };
 
   const handlePlayAgain = () => {
@@ -575,12 +593,22 @@ export default function NetworkChessGame({
             <div className="lk-modal lk-modal-dark">
               <h2>Disconnected</h2>
               <p>Disconnected from server</p>
-              <Link
-                className="lk-action-btn lk-action-primary"
-                to={"/single/play"}
-              >
-                Try Again
-              </Link>
+              {mode === "single" ? (
+                <button
+                  className="lk-action-btn lk-action-primary my-4"
+                  onClick={handleReconnect}
+                  type="button"
+                >
+                  Reconnect to game
+                </button>
+              ) : (
+                <Link
+                  className="lk-action-btn lk-action-primary my-4"
+                  to={"/single/play"}
+                >
+                  Reconnect to game
+                </Link>
+              )}
             </div>
           </div>
         ) : null}

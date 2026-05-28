@@ -158,27 +158,27 @@
   }
 
   .lk-bar-captured .lk-captured-pieces {
-    @apply min-h-0;
+    @apply flex min-h-[24px] items-center gap-1;
+  }
+
+  .lk-captured-group {
+    @apply inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-[#2c2c2c] bg-[#101010] px-1.5;
   }
 
   .lk-bar-captured .lk-chip {
-    @apply relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded px-0.5 text-sm leading-none;
+    @apply inline-flex items-center justify-center text-base leading-none;
   }
 
   .lk-bar-captured .lk-chip-dark {
-    @apply text-[#666];
+    color: #6f747c;
   }
 
   .lk-bar-captured .lk-chip-light {
-    @apply text-[#ddd];
-  }
-
-  .lk-bar-captured .lk-chip-stack {
-    @apply mr-0.5;
+    color: #d7dbe1;
   }
 
   .lk-bar-captured .lk-chip-count {
-    @apply absolute -right-1 -top-1 rounded-full bg-[#1a120a] px-0.5 text-[8px] leading-none text-[#c8a97e];
+    @apply ml-0.5 text-[10px] font-bold leading-none text-[#c8a97e];
   }
 
   .lk-clock {

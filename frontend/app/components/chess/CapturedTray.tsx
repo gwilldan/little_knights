@@ -38,14 +38,15 @@ function groupPieces(pieces: string[]) {
 
 export default function CapturedTray({ pieces, pieceColor }: CapturedTrayProps) {
   const grouped = groupPieces(pieces);
-  const chipClass = pieceColor === "w" ? "lk-chip lk-chip-light" : "lk-chip lk-chip-dark";
 
   return (
     <section aria-label="Captured pieces" className="lk-captured">
       <div className="lk-captured-pieces">
         {grouped.map(([piece, count]) => (
-          <span className={`${chipClass} lk-chip-stack`} key={`${pieceColor}-group-${piece}`}>
-            {pieceToSymbol(piece, pieceColor)}
+          <span className="lk-captured-group" key={`${pieceColor}-group-${piece}`}>
+            <span className={`lk-chip ${pieceColor === "w" ? "lk-chip-light" : "lk-chip-dark"}`}>
+              {pieceToSymbol(piece, pieceColor)}
+            </span>
             {count > 1 ? <small className="lk-chip-count">{count}</small> : null}
           </span>
         ))}
