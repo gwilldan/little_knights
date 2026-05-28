@@ -5,7 +5,7 @@ import { getNonce } from "./nonceCounter";
 
 const ESCROW_CONTRACT = process.env.ESCROW_CONTRACT as `0x${string}`;
 
-export const writeResolve = async (gameId: `0x${string}`, winner: `0x${string}`): Promise<string | void> => {
+export const writeResolve = async (gameId: `0x${string}`, winner: `0x${string}`): Promise<string> => {
     try {
 
         const nonce = await getNonce()
@@ -21,6 +21,6 @@ export const writeResolve = async (gameId: `0x${string}`, winner: `0x${string}`)
         await walletClient.waitForTransactionReceipt({ hash: tx });
         return tx;
     } catch (error) {
-        console.error("Error writing resolve transaction:", error);
+        throw error;
     }    
 }

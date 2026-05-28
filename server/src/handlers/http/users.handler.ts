@@ -8,6 +8,7 @@ import {
   AUTH_COOKIE_MAX_AGE_MS,
   signAuthToken,
 } from "../../utils/auth";
+import { logAppEvent, shortId } from "../../utils/appLogger";
 
 export const getUser = async (req: Request, res: Response) => {
   try {
@@ -24,7 +25,6 @@ export const getUser = async (req: Request, res: Response) => {
     }
     res.json({ ...user, balance: user.balance.toString() });
   } catch (error) {
-    console.log(error);
     const message = error instanceof Error ? error.message : error;
     res.status(404).json({ message });
   }
@@ -72,14 +72,13 @@ export const signInUser = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    console.log(`User signed in with id ${_user.id}`, Date.now());
+    logAppEvent("user_login", { userId: shortId(_user.id) });
 
     res.json({
       id: _user.id,
       name: _user.name,
     });
   } catch (error) {
-    console.log("error from signInUser:", error);
     const message = error instanceof Error ? error.message : error;
     res.status(500).json({ message });
   }

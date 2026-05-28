@@ -2,29 +2,9 @@ import { Chess } from "chess.js";
 import type { GameRoomState, SnapshotMessage } from "../types/game";
 import { applyClockTick } from "../services/room.service";
 
-function getCaptured(chess: Chess): { capturedByWhite: string[]; capturedByBlack: string[] } {
-  const capturedByWhite: string[] = [];
-  const capturedByBlack: string[] = [];
-
-  for (const move of chess.history({ verbose: true })) {
-    if (!move.captured) {
-      continue;
-    }
-
-    if (move.color === "w") {
-      capturedByWhite.push(move.captured);
-    } else {
-      capturedByBlack.push(move.captured);
-    }
-  }
-
-  return { capturedByWhite, capturedByBlack };
-}
-
 export function buildSnapshot(room: GameRoomState): SnapshotMessage {
   const effectiveRoom = applyClockTick(room);
   const chess = new Chess(effectiveRoom.fen);
-  const { capturedByWhite, capturedByBlack } = getCaptured(chess);
 
   const legalMoves = effectiveRoom.winner
     ? []
@@ -46,8 +26,8 @@ export function buildSnapshot(room: GameRoomState): SnapshotMessage {
       to: move.to,
       promotion: move.promotion || ""
     })),
-    capturedByWhite,
-    capturedByBlack,
+    capturedByWhite: effectiveRoom.capturedByWhite,
+    capturedByBlack: effectiveRoom.capturedByBlack,
     whiteMs: Math.max(0, effectiveRoom.whiteMs),
     blackMs: Math.max(0, effectiveRoom.blackMs),
     winner: effectiveRoom.winner,

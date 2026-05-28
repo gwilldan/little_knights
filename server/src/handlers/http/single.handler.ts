@@ -3,6 +3,7 @@ import { db } from "../../db/db.init";
 import { gamesTable } from "../../db/schema";
 import {gameInsert} from "../../utils/zod.config";
 import { parseUnits } from "viem";
+import { logAppEvent, shortId } from "../../utils/appLogger";
 
 export const saveSingleGame = async (req: Request, res: Response) => {
   try {
@@ -30,21 +31,22 @@ export const saveSingleGame = async (req: Request, res: Response) => {
       start_tx: txHash,
     })
 
-    console.log("Saving single game with data:", singleGameData);  
-
     await db.insert(gamesTable).values(singleGameData);
 
-    console.log(`Saved single game with id ${roomId} for user ${uid}`);
+    logAppEvent("game_start", {
+      roomId: shortId(roomId),
+      userId: shortId(uid),
+      txHash: shortId(txHash),
+      mode: "single"
+    });
 
     res.status(201).json({ ok: true, id: roomId });
   } catch (error: any) {
     if (error?.cause?.code === "23505") {
-      console.warn("Game already exists with id:", req.body.roomId);
       res.status(409).json({ message: "Game already exists" });
       return;
     }
 
-    console.error("Error saving single game:", error);
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ message });
   }

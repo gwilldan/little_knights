@@ -2,7 +2,7 @@ import type { WebSocket } from "ws";
 
 export type GameMode = "single" | "multiplayer";
 export type PieceColor = "w" | "b";
-export type GameEndReason = "checkmate" | "draw" | "timeout";
+export type GameEndReason = "checkmate" | "draw" | "timeout" | "forfeit";
 
 export type WsMeta = {
   roomId: string;
@@ -25,6 +25,8 @@ export type GameRoomState = {
   activeTurnStartedAt: number | null;
   winner: PieceColor | null;
   endReason: GameEndReason | null;
+  capturedByWhite: string[];
+  capturedByBlack: string[];
   player1_id: string;
   player2_id: string | null;
 };
@@ -57,7 +59,13 @@ export type NewGameMessage = {
   player2_id: string | null;
 };
 
-export type InboundMessage = JoinMessage | MoveMessage | NewGameMessage;
+export type ForfeitMessage = {
+  type: "forfeit";
+  roomId: string;
+  uid: string;
+};
+
+export type InboundMessage = JoinMessage | MoveMessage | NewGameMessage | ForfeitMessage;
 
 export type SnapshotMessage = {
   type: "snapshot";

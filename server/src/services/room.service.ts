@@ -31,6 +31,8 @@ function normalizeRoom(room: Partial<GameRoomState>): GameRoomState {
     activeTurnStartedAt: typeof room.activeTurnStartedAt === "number" ? room.activeTurnStartedAt : Date.now(),
     winner: room.winner ?? null,
     endReason: room.endReason ?? null,
+    capturedByWhite: Array.isArray(room.capturedByWhite) ? room.capturedByWhite : [],
+    capturedByBlack: Array.isArray(room.capturedByBlack) ? room.capturedByBlack : [],
     player1_id: room.player1_id!,
     player2_id: room.player2_id ?? BOT_WALLET_ADDRESS
   };
@@ -103,7 +105,9 @@ export function resetGameState(room: GameRoomState): GameRoomState {
     blackMs: TURN_LIMIT_MS,
     activeTurnStartedAt: Date.now(),
     winner: null,
-    endReason: null
+    endReason: null,
+    capturedByWhite: [],
+    capturedByBlack: []
   };
 }
 
@@ -140,11 +144,11 @@ export async function getOrCreateRoom(roomId: string, mode: GameMode, player1_id
     activeTurnStartedAt: Date.now(),
     winner: null,
     endReason: null,
+    capturedByWhite: [],
+    capturedByBlack: [],
     player1_id: player1_id,
     player2_id: player2_id ?? BOT_WALLET_ADDRESS
   };
-
-  console.log(`Created new room `, created);
 
   await redis.set(roomKey(roomId), JSON.stringify(created));
   return created;

@@ -1,6 +1,6 @@
 export type GameMode = "single" | "multiplayer";
 export type PieceColor = "w" | "b";
-export type GameEndReason = "checkmate" | "draw" | "timeout";
+export type GameEndReason = "checkmate" | "draw" | "timeout" | "forfeit";
 
 export type LegalMove = {
   from: string;
@@ -70,4 +70,10 @@ export type NewGameMessage = {
   init_tx: string;
 };
 
-export type ClientMessage = JoinMessage | MoveMessage | NewGameMessage;
+export type ForfeitMessage = {
+  type: "forfeit";
+  uid: string;
+  roomId: string;
+};
+
+export type ClientMessage = JoinMessage | MoveMessage | NewGameMessage | ForfeitMessage;

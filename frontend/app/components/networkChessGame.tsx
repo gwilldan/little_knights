@@ -86,6 +86,7 @@ export default function NetworkChessGame({
   const [clockNow, setClockNow] = useState(Date.now());
   const [flipped, setFlipped] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const [gameEndMessage, setGameEndMessage] = useState<GameEndedMessage | null>(
     null,
@@ -95,6 +96,8 @@ export default function NetworkChessGame({
   const socketRef = useRef<WebSocket | null>(null);
   const lastFenRef = useRef<string | null>(null);
   const soundEnabledRef = useRef(true);
+  const pendingForfeitExitRef = useRef(false);
+  const forfeitFallbackTimeoutRef = useRef<number | null>(null);
 
   const wsUrl = loadSettings().wsUrl;
   const uid = useMemo(() => uidProp ?? getOrCreateUid(), [uidProp]);
@@ -191,6 +194,14 @@ export default function NetworkChessGame({
     });
   }
 
+  function sendForfeit() {
+    return sendJson(socketRef.current, {
+      type: "forfeit",
+      uid,
+      roomId,
+    });
+  }
+
   function onSquareClick({ square, piece }: SquareHandlerArgs) {
     if (!snapshot || snapshot.isGameOver || snapshot.turn !== myColor) {
       return;
@@ -264,6 +275,12 @@ export default function NetworkChessGame({
     const storedSoundEnabled = loadSettings().soundEnabled;
     soundEnabledRef.current = storedSoundEnabled;
     setSoundEnabled(storedSoundEnabled);
+
+    return () => {
+      if (forfeitFallbackTimeoutRef.current) {
+        window.clearTimeout(forfeitFallbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -333,6 +350,16 @@ export default function NetworkChessGame({
 
       if (message.type === "game_end") {
         setGameEndMessage(message as GameEndedMessage);
+        if (pendingForfeitExitRef.current) {
+          pendingForfeitExitRef.current = false;
+          setIsExiting(false);
+          if (forfeitFallbackTimeoutRef.current) {
+            window.clearTimeout(forfeitFallbackTimeoutRef.current);
+            forfeitFallbackTimeoutRef.current = null;
+          }
+          socket.close();
+          navigate("/");
+        }
         return;
       }
 
@@ -397,7 +424,9 @@ export default function NetworkChessGame({
       ? "Time Up"
       : endReasonValue === "checkmate"
         ? "Checkmate"
-        : "Draw";
+        : endReasonValue === "forfeit"
+          ? "Forfeit"
+          : "Draw";
 
   const options: ChessboardOptions = {
     id: `${mode}-${roomId}`,
@@ -424,7 +453,29 @@ export default function NetworkChessGame({
         : "lk-dot-connecting";
 
   const handleCloseGame = () => {
-    socketRef?.current?.close();
+    if (mode === "single" && snapshot && !snapshot.isGameOver) {
+      pendingForfeitExitRef.current = true;
+      setIsExiting(true);
+      setStatus("Forfeiting...");
+      setShowExitModal(false);
+      const sent = sendForfeit();
+      if (!sent) {
+        pendingForfeitExitRef.current = false;
+        setIsExiting(false);
+        navigate("/");
+        return;
+      }
+
+      forfeitFallbackTimeoutRef.current = window.setTimeout(() => {
+        pendingForfeitExitRef.current = false;
+        setIsExiting(false);
+        socketRef.current?.close();
+        navigate("/");
+      }, 2_500);
+      return;
+    }
+
+    socketRef.current?.close();
     navigate("/");
   };
 
@@ -566,7 +617,7 @@ export default function NetworkChessGame({
           <div className="lk-modal-backdrop">
             <div className="lk-modal lk-modal-dark">
               <h2>End Game?</h2>
-              <p>Do you wish to end game</p>
+              <p>Exiting this game means forfeiture. AI wins and the game will be resolved.</p>
               <div className="lk-modal-actions">
                 <button
                   className="lk-action-btn"
@@ -580,14 +631,27 @@ export default function NetworkChessGame({
                   onClick={handleCloseGame}
                   type="button"
                 >
-                  Yes
+                  Yes, Forfeit
                 </button>
               </div>
             </div>
           </div>
         ) : null}
 
-        {enabled && connectionState === "disconnected" ? (
+        {isExiting ? (
+          <div className="lk-modal-backdrop">
+            <div className="lk-modal lk-modal-dark">
+              <div aria-hidden className="lk-start-loader">
+                <span className="lk-start-loader-piece">♞</span>
+                <span className="lk-start-loader-ring" />
+              </div>
+              <h2>Exiting</h2>
+              <p>Resolving game...</p>
+            </div>
+          </div>
+        ) : null}
+
+        {enabled && !isExiting && connectionState === "disconnected" ? (
           <div className="lk-modal-backdrop">
             <ExitButton />
             <div className="lk-modal lk-modal-dark">
