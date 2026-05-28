@@ -37,7 +37,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
 
   const publicClient = createPublicClient({
     chain: celoSepolia,
-    transport: http(import.meta.env.VITE_CELO_RPC_URL),
+    transport: http(),
   });
   const walletClient = createWalletClient({
     account,

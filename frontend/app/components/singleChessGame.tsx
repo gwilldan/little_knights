@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
 import { Wallet } from "lucide-react";
 import { createPublicClient, erc20Abi, formatUnits, http } from "viem";
 import { celoSepolia } from "viem/chains";
@@ -13,6 +12,7 @@ const BET_AMOUNT = import.meta.env.VITE_BET_AMOUNT!;
 const INSUFFICIENT_BALANCE_ERROR = "Insufficient USDC balance. Refill your wallet to play.";
 const REJECTED_TRANSACTION_ERROR = "You've rejected transaction error";
 const TRANSACTION_FAILED_ERROR = "transaction failed";
+const UNKNOWN_START_ERROR = "Unable to start game. Please try again.";
 
 function isRejectedTransactionError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -26,6 +26,26 @@ function isRejectedTransactionError(error: unknown) {
     message.includes("rejected") ||
     message.includes("denied")
   );
+}
+
+function getStartErrorMessage(error: unknown) {
+  if (isRejectedTransactionError(error)) {
+    return REJECTED_TRANSACTION_ERROR;
+  }
+
+  if (error instanceof Error) {
+    if (error.message.toLowerCase().includes("transaction failed")) {
+      return TRANSACTION_FAILED_ERROR;
+    }
+
+    return error.message || UNKNOWN_START_ERROR;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return UNKNOWN_START_ERROR;
 }
 
 export default function SingleChessGame() {
@@ -43,6 +63,7 @@ export default function SingleChessGame() {
     setBalLoading(true);
     if (!walletAddress) {
       setUsdcBalance("--");
+      setBalLoading(false);
       return;
     }
 
@@ -83,7 +104,7 @@ export default function SingleChessGame() {
       }
 
       await loadUsdcBalance();
-      setBalLoading(false);
+      if (active) setBalLoading(false);
     })();
 
     return () => {
@@ -92,6 +113,10 @@ export default function SingleChessGame() {
   }, [walletAddress]);
 
   async function handleStartPlay() {
+    if (startLoading) {
+      return;
+    }
+
     setStartLoading(true);
     setStartError(null);
 
@@ -102,7 +127,14 @@ export default function SingleChessGame() {
       return;
     }
 
-    if (usdcBalance < BET_AMOUNT) {
+    const availableBalance = Number(usdcBalance);
+    const requiredBalance = Number(BET_AMOUNT);
+
+    if (
+      Number.isFinite(availableBalance) &&
+      Number.isFinite(requiredBalance) &&
+      availableBalance < requiredBalance
+    ) {
       console.error("[single-game] Insufficient USDC balance.", {
         walletAddress,
         usdcBalance,
@@ -113,59 +145,38 @@ export default function SingleChessGame() {
       return;
     }
 
-    let gameId = "";
-    let txHash = "";
-
     try {
       const result = await createSingleGame(BET_AMOUNT);
-      gameId = result.gameId;
-      txHash = result.txHash;
       setRoomId(result.gameId);
-    } catch (error) {
-      console.error("[single-game] createSingleGame failed.", error);
-      setStartError(error as any);
-      setStartLoading(false);
-      return;
-    }
 
-    try {
       const saved = await saveSingleGame({
-        roomId: gameId,
+        roomId: result.gameId,
         uid: walletAddress,
         amount: BET_AMOUNT,
-        txHash,
+        txHash: result.txHash,
       });
 
-    } catch (error) {
-      console.error("[single-game] saveSingleGame request failed.", error);
-      setStartError(error as string);
-      setStartLoading(false);
-      return;
-    }
+      if (!saved) {
+        throw new Error("Game was created on-chain, but the server could not save it.");
+      }
 
-    let signedIn = false;
-    try {
-      signedIn = await signInUser({
+      const signedIn = await signInUser({
         id: walletAddress,
         name: `Player-${walletAddress.slice(2, 8)}`,
         balance: "0",
       });
+
+      if (!signedIn) {
+        throw new Error("Wallet sign-in failed.");
+      }
+
+      setReadyToPlay(true);
     } catch (error) {
-      console.error("[single-game] signInUser failed.", error);
-      setStartError(error as string);
+      console.error("[single-game] start game failed.", error);
+      setStartError(getStartErrorMessage(error));
+    } finally {
       setStartLoading(false);
-      return;
     }
-
-    if (!signedIn) {
-      console.error("[single-game] signInUser returned false.");
-      setStartError("Wallet not signed In");
-      setStartLoading(false);
-      return;
-    }
-
-    setReadyToPlay(true);
-    setStartLoading(false);
   }
 
   function handlePlayAgain() {
@@ -217,7 +228,7 @@ export default function SingleChessGame() {
 
             <button
               className="lk-action-btn lk-action-primary lk-start-play"
-              disabled={balLoading}
+              disabled={balLoading || startLoading}
               onClick={handleStartPlay}
               type="button"
             >

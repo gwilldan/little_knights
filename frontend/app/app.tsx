@@ -83,9 +83,16 @@ export default function App() {
           throw new Error("Wallet not connected.");
         }
 
-        const result = await createSingleGameCall({ walletAddress, betAmount });
-        setGameCount((count) => count + 1);
-        return result;
+        try {
+          setLastError(null);
+          const result = await createSingleGameCall({ walletAddress, betAmount });
+          setGameCount((count) => count + 1);
+          return result;
+        } catch (error) {
+          const message = getErrorMessage(error, "Failed to create single game.");
+          setLastError(message);
+          throw new Error(message);
+        }
       },
     };
   }, [gameCount, healthOk, isMiniPay, lastError, status, walletAddress]);
@@ -114,6 +121,18 @@ export default function App() {
       <Outlet />
     </AppSessionContext.Provider>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return fallback;
 }
 
 async function checkBackendHealth() {

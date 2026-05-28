@@ -529,7 +529,7 @@ export default function NetworkChessGame({
 
         {snapshot?.isGameOver ? (
           <div className="lk-modal-backdrop">
-            <div className="lk-modal lk-modal-dark">
+            <div className="lk-modal lk-modal-dark relative">
               <ExitButton />
               <h2>{resultLabel}</h2>
               <p>{endReason}</p>
