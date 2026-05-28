@@ -28,6 +28,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
   const escrowContractAddress = readAddressEnv("VITE_ESCROW_CONTRACT_ADDRESS");
   const stablecoinAddress = readAddressEnv("VITE_STABLECOIN_CONTRACT_ADDRESS");
   const stablecoinDecimals = Number(import.meta.env.VITE_STABLECOIN_DECIMALS ?? 6);
+  const USDC_ADAPTER = import.meta.env.VITE_USDC_ADAPTER!; 
 
   const account = walletAddress as Address;
   const amount = parseUnits(betAmount, stablecoinDecimals);
@@ -60,6 +61,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
       args: [escrowContractAddress, maxInt256],
       account,
       chain: celoSepolia,
+      feeCurrency: USDC_ADAPTER
     });
     const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
     if (!approveReceipt || approveReceipt.status !== "success") {
@@ -76,6 +78,7 @@ export async function createSingleGame({ walletAddress, betAmount }: CreateSingl
     args: [gameId, account, amount],
     account,
     chain: celoSepolia,
+    feeCurrency: USDC_ADAPTER
   });
 
   const txReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
