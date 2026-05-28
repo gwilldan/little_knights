@@ -74,5 +74,5 @@ switch (process.env.ACTION) {
   }
 
   default:
-    console.error("Invalid ACTION. Use 'escrow' | 'storage' | 'gameData'.");
+    console.error("Invalid ACTION. Use 'escrow' | 'storage' .");
 }

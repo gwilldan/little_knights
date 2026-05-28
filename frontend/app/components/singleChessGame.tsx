@@ -10,7 +10,7 @@ import ExitButton from "./exitButton";
 
 const BET_AMOUNT = import.meta.env.VITE_BET_AMOUNT!;
 const INSUFFICIENT_BALANCE_ERROR = "Insufficient USDC balance. Refill your wallet to play.";
-const REJECTED_TRANSACTION_ERROR = "You've rejected transaction error";
+const REJECTED_TRANSACTION_ERROR = "You've rejected transaction";
 const TRANSACTION_FAILED_ERROR = "transaction failed";
 const UNKNOWN_START_ERROR = "Unable to start game. Please try again.";
 

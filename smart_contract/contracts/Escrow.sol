@@ -236,7 +236,7 @@ contract LittleKnightsEscrowManager {
         bytes32 gameId,
         address player1,
         uint256 betAmount
-    ) external onlyAdmin {
+    ) external {
         if (player1 == address(0)) revert InvalidAddress();
         if (betAmount == 0) revert ZeroBet();
         if (games[gameId].createdAt != 0) revert GameAlreadyExists();
